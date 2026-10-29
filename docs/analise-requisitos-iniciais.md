@@ -18,7 +18,7 @@ Esta análise separa o que foi explicitamente informado do que ainda precisa de 
 
 ## Pressupostos a validar
 
-- Cada pessoa terá uma conta individual e poderá pertencer a uma ou mais equipas.
+- Cada pessoa terá uma conta individual. O MVP poderá começar com uma equipa; a pertença a várias equipas ainda precisa de confirmação.
 - Existirão papéis diferentes, como administrador, gestor de projeto e membro da equipa.
 - Um projeto conterá tarefas, e as tarefas terão responsáveis, estados, prioridades e prazos.
 - As equipas poderão colaborar nas tarefas, por exemplo através de comentários ou anexos.
