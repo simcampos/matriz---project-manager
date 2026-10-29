@@ -45,13 +45,14 @@ Os requisitos abaixo descrevem o âmbito proposto para o MVP. A prioridade é Al
 | **RF-02** | O sistema deve distinguir os papéis Admin, Project Manager e Developer e limitar as ações de acordo com as permissões definidas. | Alta |
 | **RF-03** | O Admin deve poder consultar os utilizadores da equipa e atribuir a utilizadores existentes um dos papéis disponíveis. | Alta |
 | **RF-04** | O Project Manager deve poder criar, consultar e atualizar projetos. A proposta para validação é exigir título e permitir descrição opcional. | Alta |
-| **RF-05** | O Project Manager deve poder associar membros existentes aos projetos que gere. Um utilizador não associado não deve poder consultar nem alterar o projeto ou as suas tarefas. | Alta |
+| **RF-05** | O Project Manager deve poder associar membros existentes aos projetos que gere. Um utilizador não associado não deve poder consultar nem alterar o projeto ou as suas tarefas. O Project Manager responsável conta implicitamente como membro do projeto. | Alta |
 | **RF-06** | O Project Manager deve poder criar, consultar e atualizar tarefas associadas a um projeto. A proposta para validação é exigir título e estado, permitir descrição opcional e permitir tarefa sem responsável. | Alta |
 | **RF-07** | O sistema deve disponibilizar um conjunto fixo e comum de estados de tarefa. A proposta inicial é “Por fazer”, “Em progresso” e “Concluída”. | Alta |
 | **RF-08** | O Project Manager deve poder atribuir uma tarefa a um membro associado ao projeto. | Alta |
 | **RF-09** | O Developer deve poder atualizar o estado das tarefas que lhe estão atribuídas e a que tem acesso. O Project Manager deve poder atualizar tarefas dos projetos que gere. | Alta |
 | **RF-10** | O sistema deve apresentar as tarefas de um projeto numa lista, com filtragem básica por estado e responsável. | Média |
-| **RF-11** | O sistema deve apresentar, por projeto, a contagem de tarefas por estado e a lista de tarefas em aberto. Para esta proposta, “em aberto” significa estado diferente de “Concluída”. | Alta |
+| **RF-11** | O sistema deve apresentar, por projeto, a contagem de tarefas por estado e a lista de tarefas em aberto. Para esta proposta, “em aberto” significa estado diferente de “Concluída”. O resumo é visível a qualquer utilizador com acesso ao projeto. | Alta |
+| **RF-12** | O sistema deve permitir que o utilizador autenticado consulte as tarefas que lhe estão atribuídas em todos os projetos a que tem acesso, com filtragem opcional por estado. Proposta acrescentada para suportar o dashboard; a validar. | Média |
 
 Os critérios de aceitação detalhados estão em [user-stories.md](./user-stories.md).
 
@@ -86,6 +87,7 @@ O MVP inclui:
 - Atualização de estado pelo Developer para tarefas que lhe estão atribuídas e gestão de tarefas pelo Project Manager nos seus projetos.
 - Lista de tarefas com filtragem básica por estado e responsável.
 - Resumo do progresso do projeto através de contagens por estado e tarefas em aberto.
+- Consulta das tarefas atribuídas ao utilizador autenticado.
 
 ## Funcionalidades fora do âmbito inicial
 
@@ -112,3 +114,4 @@ As funcionalidades seguintes não fazem parte do MVP e só devem ser considerada
 - Requisitos mínimos e mensuráveis de segurança, privacidade, disponibilidade e desempenho.
 - Como criar, convidar, desativar e remover utilizadores; o MVP atual só descreve a gestão de papéis para utilizadores existentes.
 - Como tratar atualizações concorrentes e falhas de gravação.
+- Validar as decisões adotadas na Ficha PL 02: gestor único por projeto que conta implicitamente como membro, recusa de alterar o papel de quem gere projetos, resumo de progresso visível a qualquer utilizador com acesso ao projeto, sessão invalidada no servidor ao terminar sessão e vista das tarefas atribuídas ao utilizador (RF-12).

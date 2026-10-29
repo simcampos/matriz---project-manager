@@ -13,7 +13,7 @@
 - A autenticação prevista é por email e palavra-passe.
 - Não haverá integrações externas no MVP.
 - O MVP deve cobrir autenticação, gestão de projetos e tarefas, atribuição de tarefas e visualização de progresso.
-- Não foram escolhidas tecnologias, frameworks ou arquiteturas.
+- Não foram escolhidas tecnologias, frameworks nem linguagens. Na Ficha PL 02 foi adotado o monólito modular como arquitetura ([architecture.md](./architecture.md)), e foram propostos o modelo de dados ([database.md](./database.md)) e o contrato de API REST (`openapi.yaml`), todos a validar.
 
 ## Pressupostos assumidos
 
@@ -23,6 +23,9 @@ Estes pontos orientam a documentação, mas ainda carecem de confirmação:
 - Cada utilizador tem um papel principal entre Admin, Project Manager e Developer; acumulação de papéis não está definida.
 - Admin pode consultar utilizadores existentes e atribuir papéis; o alcance do seu acesso aos projetos está por definir.
 - Project Manager gere os projetos a que tem acesso e associa membros aos projetos.
+- Cada projeto tem um único Project Manager responsável, que conta implicitamente como membro do projeto. O papel de quem gere projetos não pode ser alterado para outro papel.
+- Terminar sessão invalida a sessão no servidor; o formato do token e a expiração estão por decidir.
+- O resumo de progresso de um projeto é visível a qualquer utilizador com acesso a esse projeto.
 - Developer consulta projetos aos quais está associado e atualiza o estado das tarefas que lhe foram atribuídas.
 - Uma tarefa pertence a um único projeto. A proposta atual permite uma tarefa sem responsável e prevê no máximo um responsável.
 - Título e estado são obrigatórios para tarefas; descrição é opcional. Para projetos, título é obrigatório e descrição opcional. Estes campos são propostas ainda por confirmar.
@@ -37,7 +40,7 @@ Estes pontos orientam a documentação, mas ainda carecem de confirmação:
 
 - A autenticação prevista é por email e palavra-passe.
 - Existem papéis distintos e o acesso a projetos deverá ser limitado aos utilizadores autorizados, de acordo com o âmbito funcional proposto.
-- Os dados deverão incluir, pelo menos, contas de utilizador, informação de projetos e informação de tarefas.
+- Os dados deverão incluir, pelo menos, contas de utilizador, sessões, informação de projetos e informação de tarefas.
 - Não foram fornecidos requisitos específicos de privacidade, proteção de dados, auditoria ou retenção.
 
 ### Regras propostas para validação
@@ -62,14 +65,14 @@ Antes da produção, identificar os dados pessoais tratados, a finalidade de cad
 ## Decisões técnicas ainda pendentes
 
 - Linguagens, frameworks, bibliotecas e ferramentas de desenvolvimento.
-- Arquitetura da aplicação e desenho dos componentes.
-- Sistema de armazenamento e modelo de dados.
+- Detalhe do desenho dos componentes do monólito modular (a arquitetura geral está em [architecture.md](./architecture.md)).
+- Sistema de armazenamento (o modelo de dados lógico está proposto em [database.md](./database.md)).
 - Serviço e mecanismo de autenticação, gestão de sessões e recuperação de acesso.
 - Ambientes de execução, alojamento, deployment e estratégia de operação.
 - Estratégia de testes, observabilidade, backups e recuperação.
 - Browsers e versões que serão suportados.
 
-Nenhuma tecnologia ou arquitetura deve ser assumida a partir deste documento.
+Nenhuma tecnologia deve ser assumida a partir deste documento.
 
 ## Limitações de âmbito
 
@@ -89,6 +92,7 @@ Ficam fora do âmbito inicial: notificações, comentários, anexos, automaçõe
 ## Questões abertas
 
 - Confirmar as permissões de cada papel, o alcance do Admin e o modelo de associação a projetos.
+- Validar as decisões adotadas na Ficha PL 02: gestor único com associação implícita, recusa de alterar o papel de quem gere projetos, visibilidade do progresso e invalidação de sessão no servidor.
 - Confirmar os campos obrigatórios e se tarefas podem ficar sem responsável.
 - Definir o ciclo de vida de contas, recuperação de acesso e proteção de sessões.
 - Definir dados pessoais tratados, finalidade, retenção e eliminação.

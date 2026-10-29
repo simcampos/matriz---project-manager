@@ -17,6 +17,7 @@ Este backlog detalha o âmbito proposto para o MVP: autenticação, gestão de p
 1. **Given** uma conta ativa existente e as credenciais corretas, **When** o utilizador submete o formulário de entrada, **Then** a sessão é iniciada e o utilizador acede à aplicação autenticado.
 2. **Given** um email não registado ou uma palavra-passe incorreta, **When** o utilizador tenta iniciar sessão, **Then** o acesso não é concedido e a mesma mensagem genérica é apresentada nos dois casos.
 3. **Given** uma sessão autenticada, **When** o utilizador escolhe terminar sessão, **Then** a sessão atual termina e uma nova consulta a um recurso protegido não apresenta o respetivo conteúdo até nova autenticação.
+4. **Given** uma sessão autenticada, **When** o utilizador consulta a sua própria conta, **Then** são apresentados o seu email e o seu papel.
 
 ## US-02 — Consultar projetos acessíveis
 
@@ -74,6 +75,8 @@ Título e estado obrigatórios e descrição opcional são regras propostas. O c
 3. **Given** um utilizador que não está associado ao projeto, **When** o Project Manager tenta atribuir-lhe a tarefa, **Then** a atribuição é recusada e o responsável anterior não é alterado.
 4. **Given** uma tarefa sem responsável, **When** o Project Manager guarda a tarefa sem selecionar um membro, **Then** a tarefa permanece sem responsável. A opcionalidade do responsável é uma proposta a confirmar.
 
+O gestor do projeto conta como membro para efeitos de atribuição, mesmo sem associação explícita (decisão adotada na Ficha PL 02, a validar com o cliente).
+
 ## US-06 — Atualizar o estado de uma tarefa
 
 **Prioridade:** Alta
@@ -93,14 +96,16 @@ Os três estados propostos são “Por fazer”, “Em progresso” e “Conclu�
 
 **Prioridade:** Alta
 
-**Como Project Manager, quero ver as tarefas agrupadas por estado num projeto, para acompanhar o progresso sem calcular os totais manualmente.**
+**Como membro com acesso a um projeto (por exemplo, Project Manager ou Developer), quero ver as tarefas agrupadas por estado num projeto, para acompanhar o progresso sem calcular os totais manualmente.**
 
 **Critérios de aceitação**
 
-1. **Given** um projeto acessível com tarefas nos estados permitidos, **When** o Project Manager consulta o resumo do projeto, **Then** é apresentado um total para cada estado e a lista contém exatamente as tarefas cujo estado não é “Concluída”.
-2. **Given** um projeto sem tarefas, **When** o Project Manager consulta o resumo, **Then** cada total apresentado é zero e a lista de tarefas em aberto está vazia.
+1. **Given** um projeto acessível com tarefas nos estados permitidos, **When** um utilizador com acesso ao projeto consulta o resumo do projeto, **Then** é apresentado um total para cada estado e a lista contém exatamente as tarefas cujo estado não é “Concluída”.
+2. **Given** um projeto sem tarefas, **When** um utilizador com acesso ao projeto consulta o resumo, **Then** cada total apresentado é zero e a lista de tarefas em aberto está vazia.
 3. **Given** uma tarefa cujo estado foi alterado e guardado, **When** o resumo do projeto é consultado novamente, **Then** os totais refletem o estado atual da tarefa e cada tarefa é contada uma única vez.
 4. **Given** um utilizador sem acesso ao projeto, **When** tenta consultar o resumo, **Then** os totais e as tarefas do projeto não são apresentados.
+
+O resumo é visível a qualquer utilizador com acesso ao projeto (decisão adotada na Ficha PL 02, a validar com o cliente).
 
 ## US-08 — Gerir utilizadores e papéis
 
@@ -114,6 +119,7 @@ Os três estados propostos são “Por fazer”, “Em progresso” e “Conclu�
 2. **Given** um utilizador existente e um dos papéis permitidos (Admin, Project Manager ou Developer), **When** o Admin atribui e guarda esse papel, **Then** o novo papel fica associado ao utilizador e é apresentado na consulta seguinte.
 3. **Given** um Developer autenticado, **When** tenta consultar ou alterar papéis de utilizadores, **Then** a operação é recusada e os papéis existentes permanecem inalterados.
 4. **Given** um papel que não pertence aos três papéis permitidos, **When** o Admin tenta atribuí-lo, **Then** a alteração é recusada e o papel anterior permanece inalterado.
+5. **Given** um utilizador que gere pelo menos um projeto, **When** o Admin tenta atribuir-lhe um papel diferente de Project Manager, **Then** a alteração é recusada e o papel anterior permanece inalterado.
 
 ## US-09 — Associar membros a projetos
 
@@ -127,6 +133,9 @@ Os três estados propostos são “Por fazer”, “Em progresso” e “Conclu�
 2. **Given** um utilizador associado a um projeto, **When** consulta os projetos disponíveis, **Then** o projeto associado é apresentado.
 3. **Given** um utilizador sem associação ao projeto, **When** consulta os projetos disponíveis ou tenta aceder diretamente ao projeto, **Then** o projeto não é apresentado e os dados do projeto e das tarefas não ficam acessíveis.
 4. **Given** um Developer autenticado, **When** tenta alterar a associação de membros a um projeto, **Then** a operação é recusada e a lista de membros permanece inalterada.
+5. **Given** um utilizador que já é membro do projeto ou que é o seu gestor, **When** o Project Manager tenta associá-lo novamente, **Then** a operação é recusada por conflito e a lista de membros permanece inalterada.
+
+O gestor do projeto conta implicitamente como membro: aparece na lista de membros e pode ser responsável por tarefas (decisão adotada na Ficha PL 02, a validar com o cliente).
 
 ## US-10 — Consultar e filtrar tarefas
 
@@ -140,6 +149,20 @@ Os três estados propostos são “Por fazer”, “Em progresso” e “Conclu�
 2. **Given** a lista de tarefas de um projeto e um estado permitido selecionado, **When** aplica o filtro de estado, **Then** cada tarefa apresentada tem exatamente esse estado.
 3. **Given** a lista de tarefas de um projeto e um responsável selecionado, **When** aplica o filtro de responsável, **Then** cada tarefa apresentada está atribuída a esse responsável.
 4. **Given** nenhum resultado correspondente ao filtro escolhido, **When** o filtro é aplicado, **Then** a lista não apresenta tarefas e indica que não existem resultados.
+
+## US-11 — Consultar as minhas tarefas
+
+**Prioridade:** Média
+
+**Como utilizador autenticado, quero consultar as tarefas que me estão atribuídas em todos os projetos a que tenho acesso, para aceder rapidamente ao meu trabalho.**
+
+**Critérios de aceitação**
+
+1. **Given** um utilizador com tarefas atribuídas em vários projetos a que tem acesso, **When** consulta as suas tarefas, **Then** são apresentadas todas as tarefas atribuídas a si, com o respetivo estado, e nenhuma tarefa atribuída a outros utilizadores.
+2. **Given** as tarefas atribuídas ao utilizador e um estado permitido selecionado, **When** aplica o filtro de estado, **Then** cada tarefa apresentada tem exatamente esse estado.
+3. **Given** um utilizador sem tarefas atribuídas, **When** consulta as suas tarefas, **Then** a lista não apresenta tarefas e indica que não existem resultados.
+
+Proposta acrescentada na Ficha PL 02 para suportar o dashboard; a validar com o cliente.
 
 ## Casos excecionais relevantes
 
@@ -162,3 +185,4 @@ Os três estados propostos são “Por fazer”, “Em progresso” e “Conclu�
 - Definir como evitar que a alteração de papéis deixe a equipa sem um Admin.
 - Definir resultado verificável para falhas de gravação e alterações simultâneas.
 - Definir limites de tamanho dos campos para que a validação de conteúdo fique totalmente objetiva.
+- Validar com o cliente as decisões adotadas na Ficha PL 02: gestor único por projeto que conta implicitamente como membro; recusa de alterar o papel de quem gere projetos; resumo de progresso visível a qualquer utilizador com acesso ao projeto; sessão invalidada no servidor ao terminar sessão; vista "As minhas tarefas" (US-11).

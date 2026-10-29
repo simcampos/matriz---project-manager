@@ -29,6 +29,7 @@ As permissões exatas e a possibilidade de um utilizador acumular papéis devem 
 | **Estados fixos de tarefa** | Usar, como proposta a validar, “Por fazer”, “Em progresso” e “Concluída”. Developer atualiza o estado das tarefas que lhe estão atribuídas; Project Manager pode editar tarefas nos projetos que gere. | Estados permitem acompanhar progresso com regras simples; a lista concreta e as permissões ainda precisam de confirmação. | Alta |
 | **Consulta de tarefas por projeto** | Apresentar uma lista de tarefas, com filtragem por estado e responsável. | Uma lista dá acesso operacional às tarefas; os filtros são uma proposta de baixo custo de âmbito e devem ser confirmados. | Média |
 | **Resumo do progresso do projeto** | Mostrar contagens por estado e lista de tarefas em aberto, definida provisoriamente como tarefas cujo estado não é “Concluída”. | Dá uma leitura do progresso a partir de dados já existentes, sem criar métricas históricas. | Alta |
+| **Tarefas atribuídas ao utilizador** | O utilizador autenticado consulta, com filtro opcional por estado, as tarefas que lhe estão atribuídas em todos os projetos a que tem acesso. | Dá acesso rápido ao trabalho pessoal a partir do dashboard; proposta a validar. | Média |
 
 ### Limites propostos para o MVP
 
