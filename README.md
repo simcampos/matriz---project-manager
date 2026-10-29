@@ -4,5 +4,9 @@ Repositório do **Matriz - Project Manager**, um projeto em desenvolvimento.
 
 ## Status
 
-O projeto está em fase inicial. As informações de instalação e utilização serão adicionadas à medida que a aplicação evoluir.
+O projeto está em fase inicial de análise e documentação. A documentação criada está na pasta [`docs/`](./docs/).
 
+## Documentação
+
+- [Análise inicial de requisitos](./docs/analise-requisitos-iniciais.md)
+- [Âmbito funcional do MVP](./docs/ambito-funcional-mvp.md)
