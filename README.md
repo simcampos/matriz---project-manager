@@ -36,7 +36,7 @@ Este âmbito é uma proposta baseada em pressupostos, não uma especificação a
 - [Arquitetura (monólito modular)](./docs/architecture.md)
 - [Modelo de dados e diagrama ER](./docs/database.md)
 - [Contrato da API (OpenAPI 3.1)](./openapi.yaml)
-- [Wireframe do dashboard](./docs/ui/dashboard-wireframe.png)
+- [Wireframe do dashboard](./docs/ui/wireframe.png)
 
 ## Estado atual
 
