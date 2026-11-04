@@ -2,9 +2,9 @@
 
 ## Contexto
 
-Este backlog detalha o âmbito proposto para o MVP: autenticação, gestão de projetos e tarefas, atribuição de tarefas e visualização de progresso. As histórias e regras de acesso são propostas, não requisitos aprovados, e devem ser revistas pelo cliente.
+Este backlog detalha o âmbito da ficha de implementação: autenticação, gestão e pesquisa de projetos, tarefas com estado e prioridade, múltiplos responsáveis, comentários e painel inicial. As regras de acesso e os detalhes que a ficha não fixa continuam propostas para validação. Para a estrutura inicial foram confirmados sessões Django, estados `TODO`/`IN_PROGRESS`/`DONE`, prioridades `LOW`/`MEDIUM`/`HIGH` com defaults `TODO`/`MEDIUM` e eliminação em cascata de dados dependentes.
 
-**Prioridades:** Alta significa necessária para o fluxo central proposto; Média significa útil para utilização diária, mas adiável. Os nomes Admin, Project Manager e Developer são rótulos provisórios dos papéis. Os campos e estados usados nos critérios também são propostas a confirmar.
+**Prioridades:** Alta significa necessária para o fluxo central proposto; Média significa útil para utilização diária, mas adiável. Admin, Project Manager e Developer são os rótulos dos papéis. As regras de autorização e os campos de produto ainda sujeitos a validação são indicados como propostas.
 
 ## US-01 — Autenticar-se
 
@@ -36,46 +36,49 @@ O âmbito de consulta de projetos pelo Admin e o acesso a projetos arquivados ai
 
 **Prioridade:** Alta
 
-**Como Project Manager, quero criar e atualizar projetos, para organizar o trabalho da equipa por objetivo.**
+**Como Project Manager, quero criar, atualizar e eliminar projetos, para organizar o trabalho da equipa por objetivo.**
 
 **Critérios de aceitação**
 
-1. **Given** um Project Manager autenticado, **When** submete um título que contém pelo menos um carácter diferente de espaço, **Then** o projeto é criado e o título guardado corresponde ao valor submetido sem espaços no início e no fim.
+1. **Given** um Project Manager autenticado, **When** submete um título com 3 a 100 caracteres e pelo menos um carácter diferente de espaço, **Then** o projeto é criado e o título guardado corresponde ao valor submetido sem espaços no início e no fim.
 2. **Given** um projeto existente que o Project Manager pode gerir, **When** altera e guarda o título ou a descrição, **Then** os novos valores são apresentados na consulta do projeto.
 3. **Given** um formulário de projeto com título vazio ou composto apenas por espaços, **When** o utilizador tenta guardar, **Then** o projeto não é criado ou alterado e é apresentada uma indicação de que o título é obrigatório.
 4. **Given** um Developer autenticado, **When** tenta criar ou editar um projeto, **Then** a operação é recusada e os dados do projeto permanecem inalterados.
+5. **Given** um projeto que o Project Manager pode gerir, **When** pede a sua eliminação, **Then** a operação é autorizada e as tarefas, associações, responsáveis e comentários dependentes são removidos em cascata.
 
-Título obrigatório e descrição opcional são regras propostas para confirmação. Limites de tamanho e regras para descrição ainda não estão definidos.
+Título obrigatório, descrição opcional e a regra de quem pode eliminar são propostas para confirmação. A implementação e o contrato atuais limitam o título a 3–100 caracteres e a descrição a 1000 caracteres; estes limites e as regras de acesso ainda precisam de validação do cliente.
 
 ## US-04 — Criar e gerir tarefas
 
 **Prioridade:** Alta
 
-**Como Project Manager, quero criar e atualizar tarefas num projeto, para decompor o trabalho em atividades acompanháveis.**
+**Como Project Manager, quero criar, consultar, atualizar e eliminar tarefas num projeto, para decompor o trabalho em atividades acompanháveis.**
 
 **Critérios de aceitação**
 
-1. **Given** um Project Manager com acesso de gestão a um projeto, **When** cria uma tarefa com título que contém pelo menos um carácter diferente de espaço e com um estado permitido, **Then** a tarefa fica associada ao projeto e são apresentados o título sem espaços no início e no fim e o estado escolhido.
-2. **Given** uma tarefa existente num projeto que pode gerir, **When** atualiza o título, a descrição opcional ou o estado para valores permitidos e guarda, **Then** os novos valores são apresentados na consulta da tarefa.
-3. **Given** uma tarefa sem título ou sem estado permitido, **When** o utilizador tenta criá-la ou guardar alterações, **Then** a operação é recusada, a tarefa não é criada ou mantém os valores anteriores e é apresentada uma indicação do campo inválido.
+1. **Given** um Project Manager com acesso de gestão a um projeto, **When** cria uma tarefa com título de 3 a 150 caracteres que não seja só espaços, descrição opcional até 2000 caracteres e, opcionalmente, estado e prioridade permitidos, **Then** a tarefa fica associada ao projeto; os valores omitidos assumem `TODO` e `MEDIUM`.
+2. **Given** uma tarefa existente num projeto que pode gerir, **When** atualiza o título, a descrição opcional, o estado ou a prioridade para valores permitidos e guarda, **Then** os novos valores são apresentados na consulta da tarefa.
+3. **Given** uma tarefa com título inválido ou estado/prioridade fora dos valores permitidos, **When** o utilizador tenta criá-la ou guardar alterações, **Then** a operação é recusada, a tarefa não é criada ou mantém os valores anteriores e é apresentada uma indicação do campo inválido.
 4. **Given** um utilizador sem associação ao projeto da tarefa, **When** tenta consultá-la ou alterá-la, **Then** os dados não são apresentados e nenhum valor é alterado.
+5. **Given** um Project Manager com acesso de gestão à tarefa, **When** pede a sua eliminação, **Then** a tarefa deixa de estar disponível e os seus responsáveis e comentários são removidos em cascata.
 
-Título e estado obrigatórios e descrição opcional são regras propostas. O conjunto concreto de estados e limites de tamanho precisam de confirmação.
+O título tem de conter entre 3 e 150 caracteres após remover espaços externos e não pode ser composto apenas por espaços. A descrição é opcional e tem no máximo 2000 caracteres. Estado e prioridade têm defaults `TODO` e `MEDIUM`; os códigos aceites são `TODO`/`IN_PROGRESS`/`DONE` e `LOW`/`MEDIUM`/`HIGH`. As regras de acesso continuam conforme a matriz de permissões a validar.
 
 ## US-05 — Atribuir tarefas
 
 **Prioridade:** Alta
 
-**Como Project Manager, quero atribuir uma tarefa a um membro associado ao projeto, para tornar explícita a responsabilidade pelo trabalho.**
+**Como Project Manager, quero associar e remover vários responsáveis de uma tarefa, para tornar explícita a responsabilidade partilhada pelo trabalho.**
 
 **Critérios de aceitação**
 
-1. **Given** uma tarefa num projeto e um membro associado a esse projeto, **When** o Project Manager atribui a tarefa a esse membro e guarda, **Then** o identificador do membro fica registado como responsável e é apresentado na consulta da tarefa.
-2. **Given** uma tarefa atribuída, **When** um utilizador com acesso ao projeto consulta a tarefa, **Then** o responsável atual é apresentado.
-3. **Given** um utilizador que não está associado ao projeto, **When** o Project Manager tenta atribuir-lhe a tarefa, **Then** a atribuição é recusada e o responsável anterior não é alterado.
-4. **Given** uma tarefa sem responsável, **When** o Project Manager guarda a tarefa sem selecionar um membro, **Then** a tarefa permanece sem responsável. A opcionalidade do responsável é uma proposta a confirmar.
+1. **Given** uma tarefa e um utilizador ativo que é membro do projeto ou o seu gestor, **When** o Project Manager o associa, **Then** o responsável aparece uma única vez; repetir a associação devolve conflito e não duplica a relação.
+2. **Given** uma tarefa com responsáveis, **When** um utilizador com acesso ao projeto consulta a lista, **Then** todos os responsáveis atuais são apresentados.
+3. **Given** um utilizador inativo ou sem associação ao projeto, **When** o Project Manager tenta atribuí-lo, **Then** a alteração é recusada e a lista anterior permanece inalterada.
+4. **Given** uma tarefa com responsáveis, **When** o Project Manager remove a atribuição de um deles, **Then** esse utilizador deixa de constar e os restantes não são alterados.
+5. **Given** uma tarefa, **When** o Project Manager remove todos os responsáveis, **Then** o resultado segue a regra de cardinalidade aprovada para a tarefa.
 
-O gestor do projeto conta como membro para efeitos de atribuição, mesmo sem associação explícita (decisão adotada na Ficha PL 02, a validar com o cliente).
+O Project Manager é o único que pode gerir responsáveis. Para esta implementação, o utilizador confirmou como elegíveis os membros ativos do projeto e o gestor. A lista pode ficar vazia; a atribuição individual duplicada devolve conflito. O gestor conta implicitamente como membro.
 
 ## US-06 — Atualizar o estado de uma tarefa
 
@@ -90,7 +93,7 @@ O gestor do projeto conta como membro para efeitos de atribuição, mesmo sem as
 3. **Given** um estado que não pertence à lista de estados permitidos, **When** é submetida uma tentativa de atualização, **Then** a alteração é recusada e o estado válido anterior é mantido.
 4. **Given** um Project Manager que gere o projeto da tarefa, **When** atualiza o estado da tarefa para um dos estados permitidos, **Then** o novo estado é apresentado na tarefa.
 
-Os três estados propostos são “Por fazer”, “Em progresso” e “Concluída”; confirmar nomes e transições com o cliente.
+Os estados confirmados para a estrutura inicial são `TODO`, `IN_PROGRESS` e `DONE`, apresentados como “Por fazer”, “Em progresso” e “Concluída”. Transições adicionais ou restrições de fluxo não foram definidas.
 
 ## US-07 — Consultar progresso do projeto
 
@@ -141,14 +144,17 @@ O gestor do projeto conta implicitamente como membro: aparece na lista de membro
 
 **Prioridade:** Média
 
-**Como membro associado a um projeto, quero consultar e filtrar as tarefas por estado ou responsável, para localizar o trabalho relevante.**
+**Como membro associado a um projeto, quero consultar e filtrar as tarefas por estado e prioridade, para localizar o trabalho relevante.**
 
 **Critérios de aceitação**
 
 1. **Given** um utilizador associado a um projeto com tarefas, **When** consulta a lista de tarefas desse projeto, **Then** são apresentadas as tarefas desse projeto e nenhuma tarefa de outro projeto.
 2. **Given** a lista de tarefas de um projeto e um estado permitido selecionado, **When** aplica o filtro de estado, **Then** cada tarefa apresentada tem exatamente esse estado.
-3. **Given** a lista de tarefas de um projeto e um responsável selecionado, **When** aplica o filtro de responsável, **Then** cada tarefa apresentada está atribuída a esse responsável.
-4. **Given** nenhum resultado correspondente ao filtro escolhido, **When** o filtro é aplicado, **Then** a lista não apresenta tarefas e indica que não existem resultados.
+3. **Given** a lista de tarefas de um projeto e uma prioridade permitida selecionada, **When** aplica o filtro de prioridade, **Then** cada tarefa apresentada tem exatamente essa prioridade.
+4. **Given** a lista de tarefas de um projeto e um responsável selecionado, **When** aplica o filtro de responsável, **Then** cada tarefa apresentada inclui esse responsável.
+5. **Given** nenhum resultado correspondente aos filtros escolhidos, **When** os filtros são aplicados, **Then** a lista não apresenta tarefas e indica que não existem resultados.
+
+O âmbito também permite manter o filtro por responsável do MVP anterior. Os códigos de prioridade confirmados para a estrutura inicial são `LOW`, `MEDIUM` e `HIGH`, com default `MEDIUM`.
 
 ## US-11 — Consultar as minhas tarefas
 
@@ -164,22 +170,65 @@ O gestor do projeto conta implicitamente como membro: aparece na lista de membro
 
 Proposta acrescentada na Ficha PL 02 para suportar o dashboard; a validar com o cliente.
 
+## US-12 — Consultar o painel inicial
+
+**Prioridade:** Alta
+
+**Como utilizador autenticado, quero consultar os projetos a que tenho acesso e as contagens de tarefas por estado, para obter uma visão inicial do trabalho disponível.**
+
+**Critérios de aceitação**
+
+1. **Given** um utilizador autenticado com projetos acessíveis, **When** abre o painel inicial, **Then** são apresentados apenas os seus projetos acessíveis e as contagens de tarefas por estado de cada projeto.
+2. **Given** um projeto acessível sem tarefas, **When** o painel é apresentado, **Then** as contagens desse projeto são zero.
+3. **Given** um utilizador sem projetos acessíveis, **When** abre o painel, **Then** é apresentado um estado vazio sem revelar projetos alheios.
+
+## US-13 — Comentar uma tarefa
+
+**Prioridade:** Alta
+
+**Como utilizador com acesso ao projeto, quero adicionar e consultar comentários numa tarefa, para manter a conversa junto do trabalho.**
+
+**Critérios de aceitação**
+
+1. **Given** um utilizador com acesso ao projeto, **When** adiciona conteúdo entre 1 e 2000 caracteres que não seja só espaços, **Then** o comentário é guardado com o autor autenticado e a data atribuída pelo sistema.
+2. **Given** uma tarefa com comentários, **When** um utilizador autorizado consulta os comentários, **Then** cada comentário apresenta conteúdo, autor e data, por ordem cronológica ascendente.
+3. **Given** um utilizador sem acesso ao projeto, **When** tenta consultar ou adicionar comentários, **Then** a operação é recusada e nenhum comentário é revelado ou criado.
+
+O limite de 1–2000 caracteres, a rejeição de conteúdo só com espaços e a ordem cronológica ascendente estão confirmados para esta implementação. Edição, remoção e retenção de comentários continuam por definir.
+
+## US-14 — Pesquisar projetos
+
+**Prioridade:** Alta
+
+**Como utilizador autenticado, quero pesquisar projetos pelo nome, para encontrar rapidamente um projeto a que tenho acesso.**
+
+**Critérios de aceitação**
+
+1. **Given** projetos acessíveis com nomes correspondentes à pesquisa, **When** o utilizador pesquisa pelo nome, **Then** são apresentados apenas os projetos acessíveis que correspondem.
+2. **Given** que não existem correspondências acessíveis, **When** a pesquisa é executada, **Then** a lista fica vazia e indica que não há resultados.
+3. **Given** um projeto não acessível que corresponde ao termo, **When** o utilizador pesquisa, **Then** o projeto não é apresentado.
+
+A regra de correspondência (parcial/exata, maiúsculas e acentos) e o comprimento mínimo da pesquisa precisam de confirmação.
+
 ## Casos excecionais relevantes
 
 1. **Credenciais inválidas:** negar acesso e não revelar se o email está registado.
 2. **Acesso indevido:** utilizadores sem associação ao projeto não podem consultar nem alterar o projeto, as tarefas ou o resumo, incluindo através de acesso direto.
-3. **Atribuição não elegível:** impedir atribuição a alguém que não esteja associado ao projeto e preservar o responsável atual.
+3. **Responsável não elegível:** impedir a associação a alguém que não esteja autorizado e preservar a lista anterior de responsáveis.
 4. **Campos obrigatórios em falta:** recusar a gravação e não criar registos incompletos.
 5. **Projeto sem tarefas:** mostrar totais iguais a zero e uma lista em aberto vazia.
-6. **Atualizações concorrentes:** não existe regra definida para duas pessoas alterarem a mesma tarefa antes de qualquer delas guardar; decidir como prevenir perda silenciosa de alterações.
+6. **Eliminação:** eliminar em cascata tarefas, associações, responsáveis e comentários dependentes, conforme decisão da estrutura inicial.
+7. **Atualizações concorrentes:** não existe regra definida para duas pessoas alterarem a mesma tarefa antes de qualquer delas guardar; decidir como prevenir perda silenciosa de alterações.
 
 ## Questões por confirmar
 
 - Confirmar permissões por papel, alcance do Admin e possibilidade de acumular papéis.
 - Definir como criar, convidar, desativar e remover utilizadores. US-08 cobre apenas utilizadores existentes; o mecanismo de disponibilização das primeiras contas é um bloqueio em aberto.
-- Confirmar regras propostas: título obrigatório e descrição opcional para projetos; título e estado obrigatórios, descrição e responsável opcionais para tarefas.
-- Confirmar se uma tarefa pode ter vários responsáveis; a proposta atual suporta zero ou um.
-- Confirmar nomes e transições dos estados e validar que “em aberto” significa estado diferente de “Concluída”.
+- Confirmar regras propostas: título obrigatório e descrição opcional para projetos e tarefas.
+- Confirmar se tarefas podem ficar sem responsáveis.
+- Confirmar a elegibilidade de responsáveis e a cardinalidade mínima/máxima; a ficha exige suporte para vários responsáveis.
+- Confirmar se “em aberto” significa estado diferente de `DONE`.
+- Definir pesquisa por nome e validação de comentários.
 - Definir comportamento de projeto arquivado; o arquivamento foi retirado do MVP até confirmação.
 - Definir como remover membros e o que fazer às tarefas que lhes estão atribuídas.
 - Definir como evitar que a alteração de papéis deixe a equipa sem um Admin.

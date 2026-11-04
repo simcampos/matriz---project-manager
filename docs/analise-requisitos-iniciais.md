@@ -8,6 +8,8 @@ Descrição recebida do cliente:
 
 Esta análise separa o que foi explicitamente informado do que ainda precisa de validação. Nenhum pressuposto abaixo deve ser tratado como requisito confirmado.
 
+Esta análise é o registo da fase inicial de descoberta. A ficha de implementação posterior ampliou o âmbito, incluindo prioridade, comentários, pesquisa por nome, eliminação de projetos/tarefas, múltiplos responsáveis e painel inicial; para o âmbito atual prevalecem [requirements.md](./requirements.md) e [user-stories.md](./user-stories.md). As perguntas desta análise continuam relevantes apenas quando não foram respondidas pela ficha.
+
 ## Factos conhecidos
 
 - O produto pretendido é uma aplicação.

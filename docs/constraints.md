@@ -10,27 +10,34 @@
 - O acesso será feito através de um browser web.
 - Os perfis considerados são Admin, Project Manager e Developer.
 - A escala de referência é uma equipa pequena/média, até cerca de 50 utilizadores; não é um limite funcional confirmado.
-- A autenticação prevista é por email e palavra-passe.
+- A autenticação é por email e palavra-passe; a implementação inicial usa sessões Django servidor-side.
 - Não haverá integrações externas no MVP.
 - O MVP deve cobrir autenticação, gestão de projetos e tarefas, atribuição de tarefas e visualização de progresso.
-- Não foram escolhidas tecnologias, frameworks nem linguagens. Na Ficha PL 02 foi adotado o monólito modular como arquitetura ([architecture.md](./architecture.md)), e foram propostos o modelo de dados ([database.md](./database.md)) e o contrato de API REST (`openapi.yaml`), todos a validar.
+- O âmbito desta fase, conforme a ficha de implementação, inclui operações CRUD de projetos e tarefas, prioridade, múltiplos responsáveis por tarefa, comentários, pesquisa de projetos por nome, filtros de tarefas por estado/prioridade e painel inicial com projetos acessíveis e contagens por estado.
+- Stack escolhida para a implementação inicial: Python, Django, Django REST Framework, React, Vite, PostgreSQL e Django ORM, num monólito modular ([architecture.md](./architecture.md)).
 
-## Pressupostos assumidos
+## Decisões confirmadas para a estrutura inicial
 
-Estes pontos orientam a documentação, mas ainda carecem de confirmação:
+- Stack: Python, Django/DRF, React/Vite, PostgreSQL e Django ORM, num monólito modular.
+- Autenticação por email e palavra-passe com sessões Django armazenadas no servidor.
+- Códigos persistidos de estado `TODO`, `IN_PROGRESS`, `DONE`; de prioridade `LOW`, `MEDIUM`, `HIGH`; defaults `TODO` e `MEDIUM`.
+- Eliminação em cascata de dados dependentes de projetos e tarefas; os projetos com gestor e comentários com autor impedem a eliminação desse utilizador (`PROTECT`).
+
+## Pressupostos de produto ainda por validar
 
 - O MVP começa com uma equipa; suportar várias equipas fica fora do âmbito inicial.
-- Cada utilizador tem um papel principal entre Admin, Project Manager e Developer; acumulação de papéis não está definida.
+- Cada utilizador tem um papel principal entre Admin, Project Manager e Developer; acumulação de papéis não está definida. Os códigos persistidos são `ADMIN`, `PROJECT_MANAGER` e `DEVELOPER`.
 - Admin pode consultar utilizadores existentes e atribuir papéis; o alcance do seu acesso aos projetos está por definir.
 - Project Manager gere os projetos a que tem acesso e associa membros aos projetos.
 - Cada projeto tem um único Project Manager responsável, que conta implicitamente como membro do projeto. O papel de quem gere projetos não pode ser alterado para outro papel.
-- Terminar sessão invalida a sessão no servidor; o formato do token e a expiração estão por decidir.
+- Duração e expiração da sessão continuam por definir.
 - O resumo de progresso de um projeto é visível a qualquer utilizador com acesso a esse projeto.
 - Developer consulta projetos aos quais está associado e atualiza o estado das tarefas que lhe foram atribuídas.
-- Uma tarefa pertence a um único projeto. A proposta atual permite uma tarefa sem responsável e prevê no máximo um responsável.
-- Título e estado são obrigatórios para tarefas; descrição é opcional. Para projetos, título é obrigatório e descrição opcional. Estes campos são propostas ainda por confirmar.
-- Os estados propostos são “Por fazer”, “Em progresso” e “Concluída”.
-- O progresso inicial será apresentado como contagem de tarefas por estado e lista de tarefas em aberto, definida provisoriamente como estado diferente de “Concluída”.
+- Uma tarefa pertence a um único projeto e pode ter vários responsáveis. Para esta implementação, são elegíveis membros ativos do projeto e o gestor; só o gestor do projeto pode associar ou remover responsáveis. A cardinalidade mínima continua por decidir.
+- Título e estado obrigatórios e descrição opcional para tarefas. O título de tarefa tem entre 3 e 150 caracteres e não pode ser só espaços; a descrição tem no máximo 2000 caracteres. Título obrigatório e descrição opcional para projetos são propostas ainda por confirmar; a implementação atual valida título entre 3 e 100 caracteres e descrição até 1000 caracteres, limites também por validar com o cliente.
+- Rótulos da interface para os estados: “Por fazer”, “Em progresso” e “Concluída”; para prioridades: “Baixa”, “Média” e “Alta”.
+- O progresso inicial será apresentado como contagem de tarefas por estado e lista de tarefas em aberto, definida como estado diferente de `DONE`.
+- Os comentários guardam autor e data definidos pelo servidor. Para esta implementação, o conteúdo tem 1–2000 caracteres, não pode ser só espaços e é ordenado do mais antigo para o mais recente; edição, remoção e retenção continuam por definir.
 - “Até cerca de 50 utilizadores” é uma referência de dimensionamento fornecida para o MVP, não um limite máximo funcional acordado.
 - Campos, permissões e fluxos definidos nos documentos são propostas para validação, não decisões finais do cliente.
 
@@ -52,11 +59,27 @@ Estes pontos orientam a documentação, mas ainda carecem de confirmação:
 
 As regras acima não especificam mecanismos de implementação e não devem ser interpretadas como requisitos técnicos fechados.
 
+### Matriz de permissões proposta (não aprovada)
+
+| Ação | Proposta |
+|---|---|
+| Criar projeto | Project Manager; o utilizador autenticado fica como gestor responsável. |
+| Consultar projeto | Gestor responsável e membros associados. |
+| Editar/eliminar projeto | Apenas o gestor responsável. |
+| Criar/editar/eliminar tarefa | Apenas o gestor responsável pelo projeto. |
+| Consultar tarefa/comentários | Utilizadores com acesso ao projeto. |
+| Alterar estado | Developer apenas numa tarefa que lhe está atribuída; o gestor do projeto pode alterar tarefas do seu projeto. |
+| Comentar | Utilizadores com acesso ao projeto (confirmado para esta implementação). |
+| Associar/remover responsáveis | Apenas o gestor do projeto; membros ativos do projeto ou o gestor (confirmado para esta implementação). |
+| Acesso do Admin a projetos | Não conceder acesso automático apenas pelo papel Admin até validação; o alcance administrativo permanece pendente. |
+
+As restantes linhas da matriz continuam propostas para validação. Para esta implementação, o utilizador confirmou as regras de comentários e responsáveis indicadas acima. O gestor conta implicitamente como elegível; membros não podem gerir atribuições.
+
 ### Propostas mínimas de segurança por aprovar
 
 - Uma tentativa sem autorização não deve revelar nem permitir alterar os dados do projeto, das tarefas ou do resumo.
 - Mensagens de autenticação não devem indicar se o email está registado.
-- Credenciais e sessões devem ser protegidas; a política concreta, recuperação de conta, expiração de sessão e prevenção de tentativas abusivas precisam de definição antes da produção.
+- Credenciais e sessões devem ser protegidas; a política concreta, recuperação de conta, expiração de sessão e prevenção de tentativas abusivas precisam de definição antes da produção. A implementação web usa cookie de sessão Django e proteção CSRF.
 
 ### Privacidade por definir
 
@@ -64,15 +87,13 @@ Antes da produção, identificar os dados pessoais tratados, a finalidade de cad
 
 ## Decisões técnicas ainda pendentes
 
-- Linguagens, frameworks, bibliotecas e ferramentas de desenvolvimento.
-- Detalhe do desenho dos componentes do monólito modular (a arquitetura geral está em [architecture.md](./architecture.md)).
-- Sistema de armazenamento (o modelo de dados lógico está proposto em [database.md](./database.md)).
-- Serviço e mecanismo de autenticação, gestão de sessões e recuperação de acesso.
+- Estratégia de recuperação de acesso, duração das sessões Django e proteção contra tentativas abusivas.
+- Valores seguros para produção, rotação de `SECRET_KEY`, CORS/CSRF e configuração operacional.
 - Ambientes de execução, alojamento, deployment e estratégia de operação.
 - Estratégia de testes, observabilidade, backups e recuperação.
 - Browsers e versões que serão suportados.
 
-Nenhuma tecnologia deve ser assumida a partir deste documento.
+Não substituir a stack escolhida sem aprovação.
 
 ## Limitações de âmbito
 
@@ -87,13 +108,16 @@ O MVP está limitado a:
 - Ausência de integrações externas.
 - Sem arquivamento de projetos até confirmação da necessidade e das regras de acesso.
 
-Ficam fora do âmbito inicial: notificações, comentários, anexos, automações, importação, relatórios históricos, gráficos de tendência, vistas adicionais, subtarefas, dependências, marcos, múltiplas equipas e permissões granulares. A inclusão futura exige validação e priorização.
+Ficam fora do âmbito inicial: notificações, menções, anexos, automações, importação, relatórios históricos, gráficos de tendência, vistas adicionais, subtarefas, dependências, marcos, múltiplas equipas e permissões granulares. Comentários fazem parte do âmbito, mas as suas regras detalhadas e a ordenação/semântica da prioridade ainda estão por definir.
 
 ## Questões abertas
 
 - Confirmar as permissões de cada papel, o alcance do Admin e o modelo de associação a projetos.
-- Validar as decisões adotadas na Ficha PL 02: gestor único com associação implícita, recusa de alterar o papel de quem gere projetos, visibilidade do progresso e invalidação de sessão no servidor.
+- Validar os pressupostos de produto adotados na Ficha PL 02: gestor único com associação implícita, recusa de alterar o papel de quem gere projetos, visibilidade do progresso.
 - Confirmar os campos obrigatórios e se tarefas podem ficar sem responsável.
+- Definir como a interface confirma eliminações em cascata.
+- Definir o conteúdo, ordenação, validação, edição, remoção e retenção de comentários.
+- Definir regras de pesquisa por nome e comportamento dos filtros.
 - Definir o ciclo de vida de contas, recuperação de acesso e proteção de sessões.
 - Definir dados pessoais tratados, finalidade, retenção e eliminação.
 - Definir critérios verificáveis de segurança e privacidade.

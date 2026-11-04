@@ -1,18 +1,33 @@
 openapi: 3.1.0
 info:
   title: Matriz API
-  version: 0.3.0
+  version: 0.4.0
   description: |
-    Contrato REST proposto para as operações documentadas do MVP Matriz.
+    Contrato REST proposto para as operações desta fase do Matriz.
     Os caminhos concretos e alguns detalhes do contrato são propostas de API;
-    os papéis, estados e regras de negócio identificados como provisórios
-    carecem de validação nos documentos do produto.
+    os códigos de estado, prioridade e papel refletem as escolhas da estrutura
+    inicial. As regras de autorização ainda carecem de validação.
 servers:
   - url: /
     description: Base relativa à origem da aplicação; o alojamento ainda não foi definido.
 security:
-  - bearerAuth: []
+  - sessionCookie: []
 paths:
+  /csrf:
+    get:
+      operationId: getCsrfToken
+      summary: Preparar token CSRF
+      description: |
+        Define o cookie CSRF para pedidos autenticados enviados pelo browser.
+        Pedidos que alteram dados devem devolver o token no cabeçalho X-CSRFToken.
+      security: []
+      responses:
+        "204":
+          description: Cookie CSRF preparado.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
   /sessions:
     post:
       operationId: createSession
@@ -20,9 +35,9 @@ paths:
       description: |
         Autentica o utilizador com email e palavra-passe. Uma falha deve
         apresentar a mesma mensagem genérica para email inexistente e
-        palavra-passe incorreta. Cria uma sessão registada no servidor. A
-        devolução de bearer token é provisória; o formato do token e a
-        expiração ainda não foram decididos.
+        palavra-passe incorreta. Cria uma sessão de Django registada no
+        servidor e envia o cookie sessionid. A duração da sessão ainda está
+        por definir.
       security: []
       requestBody:
         required: true
@@ -31,8 +46,12 @@ paths:
             schema:
               $ref: "#/components/schemas/SessionCreate"
       responses:
-        "201":
+        "200":
           description: Sessão iniciada.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -50,8 +69,8 @@ paths:
       operationId: deleteCurrentSession
       summary: Terminar sessão atual
       description: |
-        Invalida a sessão atual no servidor. Pedidos posteriores com a mesma
-        credencial devolvem 401.
+        Invalida a sessão atual de Django no servidor. Pedidos posteriores
+        com o cookie invalidado devolvem 401.
       responses:
         "204":
           description: Sessão terminada.
@@ -95,7 +114,7 @@ paths:
       summary: Listar as tarefas atribuídas ao utilizador autenticado
       description: |
         Devolve as tarefas atribuídas ao utilizador autenticado em todos os
-        projetos a que tem acesso. O filtro por estado é opcional.
+        projetos a que tem acesso. Os filtros por estado e prioridade são opcionais.
       parameters:
         - name: status
           in: query
@@ -103,6 +122,12 @@ paths:
           description: Filtra pelo estado da tarefa.
           schema:
             $ref: "#/components/schemas/TaskStatus"
+        - name: priority
+          in: query
+          required: false
+          description: Filtra pela prioridade da tarefa.
+          schema:
+            $ref: "#/components/schemas/TaskPriority"
       responses:
         "200":
           description: Tarefas atribuídas ao utilizador.
@@ -160,7 +185,16 @@ paths:
       description: |
         Devolve apenas projetos a que o utilizador autenticado tem acesso,
         como gestor ou como membro.
+        A pesquisa por nome não distingue maiúsculas de minúsculas.
         Quando não existem projetos acessíveis, devolve uma lista vazia.
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Pesquisa por nome nos projetos acessíveis ao utilizador.
+          schema:
+            type: string
+            minLength: 1
       responses:
         "200":
           description: Lista de projetos acessíveis.
@@ -176,9 +210,9 @@ paths:
       operationId: createProject
       summary: Criar projeto
       description: |
-        Operação reservada ao Project Manager. O gestor responsável é o
-        utilizador autenticado. Título obrigatório e descrição opcional são
-        propostas ainda sujeitas a confirmação.
+        Operação reservada ao Project Manager. O gestor responsável é sempre
+        inferido da sessão autenticada; managerId não é aceite no pedido.
+        O título tem 3 a 100 caracteres e a descrição opcional até 1000.
       requestBody:
         required: true
         content:
@@ -247,6 +281,21 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      summary: Eliminar projeto
+      description: |
+        Operação reservada ao Project Manager que gere o projeto. Tarefas,
+        membros, responsáveis e comentários dependentes são eliminados em cascata.
+      responses:
+        "204":
+          description: Projeto eliminado.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{projectId}/members:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -254,11 +303,11 @@ paths:
       operationId: listProjectMembers
       summary: Listar membros do projeto
       description: |
-        Requer acesso ao projeto. A lista inclui o gestor do projeto, que
-        conta implicitamente como membro.
+        Requer acesso ao projeto. A lista inclui utilizadores ativos associados
+        ao projeto e o gestor ativo, que conta implicitamente como membro.
       responses:
         "200":
-          description: Utilizadores associados ao projeto.
+          description: Utilizadores ativos elegíveis para atribuição, incluindo o gestor.
           content:
             application/json:
               schema:
@@ -303,6 +352,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /projects/{projectId}/eligible-members:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listEligibleProjectMembers
+      summary: Listar utilizadores elegíveis para associar ao projeto
+      description: |
+        Operação reservada ao Project Manager responsável. Devolve utilizadores
+        que podem ser associados ao projeto.
+        A política de elegibilidade (por exemplo, conta ativa) carece de validação.
+      responses:
+        "200":
+          description: Utilizadores elegíveis para associação ao projeto.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{projectId}/tasks:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -311,7 +385,7 @@ paths:
       summary: Listar e filtrar tarefas do projeto
       description: |
         Requer acesso ao projeto. Os filtros são opcionais e combinam-se
-        quando ambos são enviados.
+        quando são enviados.
       parameters:
         - name: status
           in: query
@@ -326,6 +400,12 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: priority
+          in: query
+          required: false
+          description: Filtra pela prioridade da tarefa.
+          schema:
+            $ref: "#/components/schemas/TaskPriority"
       responses:
         "200":
           description: Tarefas do projeto que correspondem aos filtros.
@@ -343,9 +423,9 @@ paths:
       operationId: createProjectTask
       summary: Criar tarefa num projeto
       description: |
-        Operação reservada ao Project Manager que gere o projeto. Se for
-        indicado um responsável, este tem de ser membro do projeto (o gestor
-        do projeto conta como membro).
+        Operação reservada ao Project Manager que gere o projeto. A tarefa
+        aceita título entre 3 e 150 caracteres, descrição opcional até 2000
+        caracteres, estado e prioridade conforme os respetivos esquemas.
       requestBody:
         required: true
         content:
@@ -427,13 +507,203 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProjectTask
+      summary: Eliminar tarefa
+      description: |
+        Operação reservada ao Project Manager que gere o projeto. A política
+        de eliminação em cascata remove responsáveis e comentários associados.
+      responses:
+        "204":
+          description: Tarefa eliminada.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/tasks/{taskId}/assignees:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: taskId
+        in: path
+        required: true
+        description: Identificador da tarefa.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      operationId: listTaskAssignees
+      summary: Listar responsáveis da tarefa
+      description: Requer acesso ao projeto.
+      responses:
+        "200":
+          description: Responsáveis atuais da tarefa.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: addTaskAssignee
+      summary: Associar responsável à tarefa
+      description: |
+        Operação reservada ao gestor do projeto. O utilizador tem de estar
+        ativo e ser membro do projeto ou o seu gestor. Uma associação já
+        existente devolve 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskAssigneeCreate"
+      responses:
+        "201":
+          description: Responsável associado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: O utilizador já está associado à tarefa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: replaceTaskAssignees
+      summary: Substituir responsáveis da tarefa
+      description: |
+        Operação reservada ao Project Manager que gere o projeto. A lista
+        substitui integralmente as associações atuais. Os identificadores
+        têm de ser distintos e pertencer a utilizadores ativos membros do
+        projeto ou ao gestor. Uma lista vazia remove todos os responsáveis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskAssigneesUpdate"
+      responses:
+        "200":
+          description: Responsáveis atualizados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/tasks/{taskId}/assignees/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: taskId
+        in: path
+        required: true
+        description: Identificador da tarefa.
+        schema:
+          type: integer
+          minimum: 1
+      - name: userId
+        in: path
+        required: true
+        description: Identificador do responsável.
+        schema:
+          type: integer
+          minimum: 1
+    delete:
+      operationId: removeTaskAssignee
+      summary: Remover responsável da tarefa
+      description: Operação reservada ao gestor do projeto.
+      responses:
+        "204":
+          description: Responsável removido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/tasks/{taskId}/comments:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: taskId
+        in: path
+        required: true
+        description: Identificador da tarefa.
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      operationId: listTaskComments
+      summary: Listar comentários da tarefa
+      description: Requer acesso ao projeto.
+      responses:
+        "200":
+          description: Comentários com autor e data de criação.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createTaskComment
+      summary: Adicionar comentário à tarefa
+      description: |
+        Requer acesso ao projeto. O autor é o utilizador autenticado e a data
+        é atribuída pelo servidor. O conteúdo é obrigatório, tem entre 1 e
+        2000 caracteres e não pode ser composto apenas por espaços.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentCreate"
+      responses:
+        "201":
+          description: Comentário criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{projectId}/progress:
     get:
       operationId: getProjectProgress
       summary: Consultar progresso do projeto
       description: |
         Devolve contagens atuais por estado e as tarefas em aberto
-        (estado diferente de "Concluída", conforme proposta a validar).
+        (estado diferente de DONE).
         Disponível a qualquer utilizador com acesso ao projeto.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
@@ -448,14 +718,32 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      summary: Consultar painel inicial
+      description: |
+        Devolve os projetos acessíveis ao utilizador autenticado e as
+        contagens atuais de tarefas por estado em cada projeto.
+      responses:
+        "200":
+          description: Projetos acessíveis e respetivas contagens por estado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sessionid
       description: |
-        Esquema provisório. O formato do token e o ciclo de vida da sessão
-        ainda não foram definidos nos requisitos do MVP.
+        Cookie de sessão persistido pelo backend de sessões do Django. Pedidos
+        que alteram dados devem também enviar o token CSRF no cabeçalho
+        X-CSRFToken.
   parameters:
     ProjectId:
       name: projectId
@@ -506,9 +794,9 @@ components:
     UserRole:
       type: string
       enum:
-        - Admin
-        - Project Manager
-        - Developer
+        - ADMIN
+        - PROJECT_MANAGER
+        - DEVELOPER
     UserRoleUpdate:
       type: object
       additionalProperties: false
@@ -534,16 +822,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - accessToken
-        - tokenType
         - user
       properties:
-        accessToken:
-          type: string
-          description: Token provisório; o formato ainda não foi decidido.
-        tokenType:
-          type: string
-          const: Bearer
         user:
           $ref: "#/components/schemas/User"
     Project:
@@ -562,13 +842,15 @@ components:
           minimum: 1
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           pattern: '\S'
-          description: Título não pode ser composto apenas por espaços.
+          description: Título após remoção de espaços externos.
         description:
           type:
             - string
             - "null"
+          maxLength: 1000
     ProjectCreate:
       type: object
       additionalProperties: false
@@ -577,13 +859,15 @@ components:
       properties:
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           pattern: '\S'
-          description: Título não pode ser composto apenas por espaços.
+          description: Título após remoção de espaços externos.
         description:
           type:
             - string
             - "null"
+          maxLength: 1000
     ProjectUpdate:
       type: object
       additionalProperties: false
@@ -591,13 +875,15 @@ components:
       properties:
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 100
           pattern: '\S'
-          description: Título não pode ser composto apenas por espaços.
+          description: Título após remoção de espaços externos.
         description:
           type:
             - string
             - "null"
+          maxLength: 1000
     ProjectMember:
       type: object
       additionalProperties: false
@@ -626,33 +912,44 @@ components:
     TaskStatus:
       type: string
       enum:
-        - Por fazer
-        - Em progresso
-        - Concluída
-      description: Estados propostos para o MVP, ainda sujeitos a confirmação.
+        - TODO
+        - IN_PROGRESS
+        - DONE
+      default: TODO
+      description: Códigos persistidos; a interface apresenta rótulos em português.
+    TaskPriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+      default: MEDIUM
+      description: Códigos persistidos; a interface apresenta rótulos em português.
     TaskCreate:
       type: object
       additionalProperties: false
+      description: >
+        Os valores omitidos de estado e prioridade assumem TODO e MEDIUM.
       required:
         - title
-        - status
       properties:
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 150
           pattern: '\S'
-          description: Título não pode ser composto apenas por espaços.
+          description: Título entre 3 e 150 caracteres, sem ser só espaços.
         description:
           type:
             - string
             - "null"
+          maxLength: 2000
         status:
           $ref: "#/components/schemas/TaskStatus"
-        assigneeId:
-          type:
-            - integer
-            - "null"
-          minimum: 1
+          default: TODO
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+          default: MEDIUM
     TaskUpdate:
       type: object
       additionalProperties: false
@@ -660,29 +957,29 @@ components:
       properties:
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 150
           pattern: '\S'
-          description: Título não pode ser composto apenas por espaços.
+          description: Título entre 3 e 150 caracteres, sem ser só espaços.
         description:
           type:
             - string
             - "null"
+          maxLength: 2000
         status:
           $ref: "#/components/schemas/TaskStatus"
-        assigneeId:
-          type:
-            - integer
-            - "null"
-          minimum: 1
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
     Task:
       type: object
       additionalProperties: false
       required:
         - taskId
         - projectId
-        - assigneeId
+        - assigneeIds
         - title
         - status
+        - priority
       properties:
         taskId:
           type: integer
@@ -690,20 +987,104 @@ components:
         projectId:
           type: integer
           minimum: 1
-        assigneeId:
-          type:
-            - integer
-            - "null"
-          minimum: 1
+        assigneeIds:
+          type: array
+          uniqueItems: true
+          description: Identificadores dos utilizadores responsáveis.
+          items:
+            type: integer
+            minimum: 1
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
         title:
           type: string
-          minLength: 1
+          minLength: 3
+          maxLength: 150
         description:
           type:
             - string
             - "null"
         status:
           $ref: "#/components/schemas/TaskStatus"
+    TaskAssigneesUpdate:
+      type: object
+      additionalProperties: false
+      required:
+        - assigneeIds
+      properties:
+        assigneeIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+    TaskAssigneeCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+      properties:
+        userId:
+          type: integer
+          minimum: 1
+    CommentCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
+          description: Conteúdo obrigatório, 1–2000 caracteres e não só espaços.
+    Comment:
+      type: object
+      additionalProperties: false
+      required:
+        - commentId
+        - taskId
+        - author
+        - content
+        - createdAt
+      properties:
+        commentId:
+          type: integer
+          minimum: 1
+        taskId:
+          type: integer
+          minimum: 1
+        author:
+          $ref: "#/components/schemas/ProjectMember"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        createdAt:
+          type: string
+          format: date-time
+    Dashboard:
+      type: object
+      additionalProperties: false
+      required:
+        - projects
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardProject"
+    DashboardProject:
+      type: object
+      additionalProperties: false
+      required:
+        - project
+        - countsByStatus
+      properties:
+        project:
+          $ref: "#/components/schemas/Project"
+        countsByStatus:
+          $ref: "#/components/schemas/ProjectProgress/properties/countsByStatus"
     ProjectProgress:
       type: object
       additionalProperties: false
@@ -719,17 +1100,17 @@ components:
           type: object
           additionalProperties: false
           required:
-            - Por fazer
-            - Em progresso
-            - Concluída
+            - TODO
+            - IN_PROGRESS
+            - DONE
           properties:
-            Por fazer:
+            TODO:
               type: integer
               minimum: 0
-            Em progresso:
+            IN_PROGRESS:
               type: integer
               minimum: 0
-            Concluída:
+            DONE:
               type: integer
               minimum: 0
         openTasks:

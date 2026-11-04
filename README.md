@@ -1,6 +1,6 @@
 # Matriz
 
-O **Matriz** é uma aplicação de gestão de projetos e tarefas para equipas. O projeto está na fase de definição e desenho: ainda não foram escolhidas tecnologias, mas já foram adotados o monólito modular como arquitetura e propostos o modelo de dados, o contrato de API e um wireframe.
+O **Matriz** é uma aplicação de gestão de projetos e tarefas para equipas. A estrutura inicial usa monólito modular com Python/Django e Django REST Framework, React/Vite, PostgreSQL e Django ORM.
 
 ## Problema e objetivos
 
@@ -13,17 +13,20 @@ Os principais objetivos são:
 - Acompanhar o progresso através do estado das tarefas.
 - Aplicar acesso adequado aos utilizadores.
 
-## Âmbito proposto para o MVP
+## Âmbito desta fase
 
 - Autenticação por email e palavra-passe.
 - Perfis propostos: Admin, Project Manager e Developer.
-- Gestão básica de projetos e tarefas.
-- Associação de membros a projetos e atribuição de tarefas.
+- CRUD e pesquisa de projetos por nome.
+- CRUD de tarefas com estado e prioridade.
+- Associação de membros a projetos e associação/remoção de vários responsáveis por tarefa.
+- Comentários com autor e data.
 - Estados de tarefa propostos e fixos.
-- Lista de tarefas e resumo do progresso por projeto.
+- Filtros de tarefas por estado e prioridade.
+- Painel inicial com projetos acessíveis e contagens de tarefas por estado.
 - Consulta das tarefas atribuídas ao utilizador autenticado.
 
-Este âmbito é uma proposta baseada em pressupostos, não uma especificação aprovada pelo cliente. A escala de até cerca de 50 utilizadores é uma referência inicial, não um limite confirmado.
+As funcionalidades acima refletem a ficha desta fase. A stack, as sessões Django, os códigos/defaults de estado e prioridade e a eliminação em cascata estão confirmados para a estrutura inicial. As regras de acesso por papel e detalhes dos comentários continuam propostas ou pendentes de validação. A escala de até cerca de 50 utilizadores é uma referência inicial, não um limite confirmado.
 
 ## Documentação
 
@@ -40,4 +43,32 @@ Este âmbito é uma proposta baseada em pressupostos, não uma especificação a
 
 ## Estado atual
 
-O projeto está na fase de requisitos e desenho. Os artefactos de arquitetura, dados, API e interface são propostas em revisão; ainda não foi iniciada a implementação da aplicação.
+A aplicação contém a estrutura inicial do backend e frontend, migrations reproduzíveis e seed de demonstração idempotente. O seed cria `admin@matriz.dev`, `pm@matriz.dev` e `developer@matriz.dev`, com passwords hasheadas. Os valores e credenciais de `.env.example` são apenas para desenvolvimento local; não reutilizar em produção.
+
+## Desenvolvimento local
+
+Na raiz do projeto:
+
+```sh
+cp .env.example .env
+python3 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements.txt
+cd frontend && npm ci && cd ..
+docker compose up -d db
+.venv/bin/python backend/manage.py migrate
+.venv/bin/python backend/manage.py seed_demo
+```
+
+Arrancar o backend e o frontend em terminais separados:
+
+```sh
+DJANGO_SETTINGS_MODULE=config.settings .venv/bin/python backend/manage.py runserver
+```
+
+```sh
+cd frontend && npm run dev
+```
+
+Para validar a instalação, executar `.venv/bin/python backend/manage.py test apps.accounts apps.projects apps.tasks apps.comments` e `cd frontend && npm run build`. O seed pode ser executado novamente sem apagar ou duplicar os dados existentes.
+
+O modelo lógico e as escolhas de persistência estão descritos em [database.md](./docs/database.md). Os estados são `TODO`, `IN_PROGRESS` e `DONE`; prioridades são `LOW`, `MEDIUM` e `HIGH`, com defaults `TODO` e `MEDIUM`. As sessões são geridas por Django; a tabela `django_session` é criada pelas migrations do framework.

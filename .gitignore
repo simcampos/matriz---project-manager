@@ -1,2 +1,25 @@
-# Documentação OpenAPI gerada localmente
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# Python / Django
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+staticfiles/
+media/
+
+# Node / Vite
+node_modules/
+dist/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Generated API documentation
 redoc-static.html
