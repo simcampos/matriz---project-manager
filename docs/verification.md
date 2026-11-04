@@ -121,3 +121,23 @@ Os passos foram executados no frontend local e, quando indicado, diretamente na 
 - **Conclusão:** `apiRequest` emitia o evento de sessão expirada para qualquer 401, incluindo a verificação inicial esperada em `/users/me/`; o listener apresentava o alerta. Não ficou hipótese pendente para esta causa.
 - **Correção limitada:** a verificação inicial `/users/me/` já não emite o evento; a aplicação define explicitamente o estado anónimo para esse 401. Pedidos protegidos continuam a emitir o evento.
 - **Regressão:** `frontend/test/sessionExpired.test.js` verifica a consulta inicial, pedidos protegidos e falhas de login; os 3 testes passaram. Após a correção, abrir a aplicação anónima mostrou o formulário sem o alerta indevido.
+
+## Exemplos de utilização da IA
+
+### Exemplo 1 — Diagnóstico do alerta na entrada anónima
+
+- **Objetivo do pedido à IA:** investigar por que motivo abrir a aplicação sem sessão mostrava um alerta de sessão expirada.
+- **Decisão do programador:** aceitar a correção limitada à consulta inicial de `/users/me/`; manter o evento de sessão expirada para pedidos protegidos.
+- **Verificação:** reproduzir a resposta 401 sem alerta no browser e executar `cd frontend && npm test`. Resultado observado: 3 testes passaram, cobrindo a consulta inicial, pedidos protegidos e falhas de login.
+
+### Exemplo 2 — Refatoração de validação partilhada
+
+- **Objetivo do pedido à IA:** identificar uma refatoração de baixo risco para remover duplicação na validação de campos desconhecidos.
+- **Decisão do programador:** aceitar centralizar `StrictSerializer` em `backend/apps/common/serializers.py`, mas manter a alteração num commit separado da implementação funcional.
+- **Verificação:** executar `manage.py check`, a suite backend (39 testes), os testes frontend (3 testes), `npm run build` e `git diff --check`. Todos passaram após a refatoração.
+
+### Exemplo 3 — Operações previstas no contrato mas ausentes
+
+- **Objetivo do pedido à IA:** comparar o OpenAPI com as rotas reais e identificar operações que não estavam implementadas.
+- **Sugestão da IA e decisão do programador:** foi sinalizada a possibilidade de completar os endpoints de gestão de papéis e associação de membros. O programador rejeitou alargar a implementação nesta entrega e decidiu manter RF-03 e RF-05 como pendentes, ajustando o contrato à API existente.
+- **Verificação:** comparar caminhos e métodos do OpenAPI com `backend/config/urls.py`, validar o YAML e resolver as referências locais. Resultado observado nesta atualização: 13 caminhos correspondem às rotas registadas, 104 referências locais foram resolvidas e `git diff --check` passou.

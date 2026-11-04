@@ -3,17 +3,16 @@ info:
   title: Matriz API
   version: 0.4.0
   description: |
-    Contrato REST proposto para as operações desta fase do Matriz.
-    Os caminhos concretos e alguns detalhes do contrato são propostas de API;
-    os códigos de estado, prioridade e papel refletem as escolhas da estrutura
-    inicial. As regras de autorização ainda carecem de validação.
+    Contrato das rotas REST implementadas pelo backend Matriz. Os caminhos
+    usam o prefixo /api e barras finais. As listagens devolvem arrays completos
+    e não têm paginação.
 servers:
-  - url: /
-    description: Base relativa à origem da aplicação; o alojamento ainda não foi definido.
+  - url: /api
+    description: Prefixo da API na origem da aplicação.
 security:
   - sessionCookie: []
 paths:
-  /csrf:
+  /csrf/:
     get:
       operationId: getCsrfToken
       summary: Preparar token CSRF
@@ -28,7 +27,30 @@ paths:
             Set-Cookie:
               schema:
                 type: string
-  /sessions:
+  /health/:
+    get:
+      operationId: getHealth
+      summary: Verificar disponibilidade da API e da base de dados
+      security: []
+      responses:
+        "200":
+          description: API e ligação à base de dados disponíveis.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - status
+                  - database
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  database:
+                    type: string
+                    const: ok
+  /sessions/:
     post:
       operationId: createSession
       summary: Iniciar sessão
@@ -63,8 +85,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-  /sessions/current:
+                $ref: "#/components/schemas/CredentialsError"
+              example:
+                code: invalid_credentials
+                message: Email ou palavra-passe inválidos.
+        "403":
+          description: Pedido rejeitado pela proteção CSRF do Django.
+          content:
+            text/html:
+              schema:
+                type: string
+  /sessions/current/:
     delete:
       operationId: deleteCurrentSession
       summary: Terminar sessão atual
@@ -76,25 +107,9 @@ paths:
           description: Sessão terminada.
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /users:
-    get:
-      operationId: listUsers
-      summary: Consultar utilizadores da equipa
-      description: Operação reservada ao Admin.
-      responses:
-        "200":
-          description: Utilizadores existentes e respetivos papéis.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/User"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /users/me:
+  /users/me/:
     get:
       operationId: getCurrentUser
       summary: Consultar o utilizador autenticado
@@ -108,77 +123,7 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /users/me/tasks:
-    get:
-      operationId: listMyTasks
-      summary: Listar as tarefas atribuídas ao utilizador autenticado
-      description: |
-        Devolve as tarefas atribuídas ao utilizador autenticado em todos os
-        projetos a que tem acesso. Os filtros por estado e prioridade são opcionais.
-      parameters:
-        - name: status
-          in: query
-          required: false
-          description: Filtra pelo estado da tarefa.
-          schema:
-            $ref: "#/components/schemas/TaskStatus"
-        - name: priority
-          in: query
-          required: false
-          description: Filtra pela prioridade da tarefa.
-          schema:
-            $ref: "#/components/schemas/TaskPriority"
-      responses:
-        "200":
-          description: Tarefas atribuídas ao utilizador.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Task"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /users/{userId}:
-    patch:
-      operationId: updateUserRole
-      summary: Atribuir papel a um utilizador
-      description: |
-        Operação reservada ao Admin; altera apenas o papel do utilizador.
-        É recusada com 409 se o utilizador gerir projetos e o novo papel
-        for diferente de Project Manager.
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserRoleUpdate"
-      responses:
-        "200":
-          description: Papel atualizado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: O utilizador gere projetos e não pode deixar de ser Project Manager.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /projects:
+  /projects/:
     get:
       operationId: listProjects
       summary: Listar projetos acessíveis
@@ -195,6 +140,7 @@ paths:
           schema:
             type: string
             minLength: 1
+            pattern: '\S'
       responses:
         "200":
           description: Lista de projetos acessíveis.
@@ -204,6 +150,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
@@ -238,7 +186,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /projects/{projectId}:
+  /projects/{projectId}/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
     get:
@@ -296,7 +244,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/members:
+  /projects/{projectId}/members/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
     get:
@@ -318,66 +266,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-    post:
-      operationId: addProjectMember
-      summary: Associar membro ao projeto
-      description: |
-        Operação reservada ao Project Manager que gere o projeto. Se o
-        utilizador já for membro ou for o gestor do projeto, devolve 409 e a
-        lista de membros não é alterada.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProjectMemberCreate"
-      responses:
-        "201":
-          description: Utilizador associado ao projeto.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectMember"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: O utilizador já está associado ao projeto ou é o seu gestor.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /projects/{projectId}/eligible-members:
-    parameters:
-      - $ref: "#/components/parameters/ProjectId"
-    get:
-      operationId: listEligibleProjectMembers
-      summary: Listar utilizadores elegíveis para associar ao projeto
-      description: |
-        Operação reservada ao Project Manager responsável. Devolve utilizadores
-        que podem ser associados ao projeto.
-        A política de elegibilidade (por exemplo, conta ativa) carece de validação.
-      responses:
-        "200":
-          description: Utilizadores elegíveis para associação ao projeto.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ProjectMember"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/tasks:
+  /projects/{projectId}/tasks/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
     get:
@@ -385,7 +274,8 @@ paths:
       summary: Listar e filtrar tarefas do projeto
       description: |
         Requer acesso ao projeto. Os filtros são opcionais e combinam-se
-        quando são enviados.
+        quando são enviados. A resposta inclui todos os resultados e não é
+        paginada.
       parameters:
         - name: status
           in: query
@@ -415,6 +305,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -453,7 +345,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/tasks/{taskId}:
+  /projects/{projectId}/tasks/{taskId}/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
       - name: taskId
@@ -484,8 +376,7 @@ paths:
       description: |
         O Project Manager pode atualizar tarefas do projeto. O Developer só
         pode atualizar o estado de uma tarefa que lhe esteja atribuída. Os
-        campos aceites dependem do papel e das permissões do utilizador. Um
-        novo responsável tem de ser membro do projeto (incluindo o gestor).
+        campos aceites dependem do papel e das permissões do utilizador.
       requestBody:
         required: true
         content:
@@ -522,7 +413,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/tasks/{taskId}/assignees:
+  /projects/{projectId}/tasks/{taskId}/assignees/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
       - name: taskId
@@ -582,7 +473,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ApiDetailError"
     put:
       operationId: replaceTaskAssignees
       summary: Substituir responsáveis da tarefa
@@ -614,7 +505,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/tasks/{taskId}/assignees/{userId}:
+  /projects/{projectId}/tasks/{taskId}/assignees/{userId}/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
       - name: taskId
@@ -644,7 +535,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/tasks/{taskId}/comments:
+  /projects/{projectId}/tasks/{taskId}/comments/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
       - name: taskId
@@ -657,7 +548,9 @@ paths:
     get:
       operationId: listTaskComments
       summary: Listar comentários da tarefa
-      description: Requer acesso ao projeto.
+      description: |
+        Requer acesso ao projeto. A ordenação é ascendente por data de criação
+        e, em caso de empate, pelo identificador do comentário.
       responses:
         "200":
           description: Comentários com autor e data de criação.
@@ -695,45 +588,10 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-  /projects/{projectId}/progress:
-    get:
-      operationId: getProjectProgress
-      summary: Consultar progresso do projeto
-      description: |
-        Devolve contagens atuais por estado e as tarefas em aberto
-        (estado diferente de DONE).
-        Disponível a qualquer utilizador com acesso ao projeto.
-      parameters:
-        - $ref: "#/components/parameters/ProjectId"
-      responses:
-        "200":
-          description: Resumo atual do progresso do projeto.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProjectProgress"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /dashboard:
-    get:
-      operationId: getDashboard
-      summary: Consultar painel inicial
-      description: |
-        Devolve os projetos acessíveis ao utilizador autenticado e as
-        contagens atuais de tarefas por estado em cada projeto.
-      responses:
-        "200":
-          description: Projetos acessíveis e respetivas contagens por estado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Dashboard"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     sessionCookie:
@@ -753,16 +611,16 @@ components:
       schema:
         type: integer
         minimum: 1
-    UserId:
-      name: userId
-      in: path
-      required: true
-      description: Identificador do utilizador.
-      schema:
-        type: integer
-        minimum: 1
   schemas:
-    Error:
+    ApiDetailError:
+      type: object
+      additionalProperties: false
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+    CredentialsError:
       type: object
       additionalProperties: false
       required:
@@ -771,8 +629,17 @@ components:
       properties:
         code:
           type: string
+          const: invalid_credentials
         message:
           type: string
+    ValidationError:
+      type: object
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string
     User:
       type: object
       additionalProperties: false
@@ -780,6 +647,7 @@ components:
         - userId
         - email
         - role
+        - isActive
       properties:
         userId:
           type: integer
@@ -797,14 +665,6 @@ components:
         - ADMIN
         - PROJECT_MANAGER
         - DEVELOPER
-    UserRoleUpdate:
-      type: object
-      additionalProperties: false
-      required:
-        - role
-      properties:
-        role:
-          $ref: "#/components/schemas/UserRole"
     SessionCreate:
       type: object
       additionalProperties: false
@@ -833,6 +693,7 @@ components:
         - projectId
         - managerId
         - title
+        - description
       properties:
         projectId:
           type: integer
@@ -847,9 +708,7 @@ components:
           pattern: '\S'
           description: Título após remoção de espaços externos.
         description:
-          type:
-            - string
-            - "null"
+          type: string
           maxLength: 1000
     ProjectCreate:
       type: object
@@ -900,15 +759,6 @@ components:
           format: email
         role:
           $ref: "#/components/schemas/UserRole"
-    ProjectMemberCreate:
-      type: object
-      additionalProperties: false
-      required:
-        - userId
-      properties:
-        userId:
-          type: integer
-          minimum: 1
     TaskStatus:
       type: string
       enum:
@@ -978,6 +828,7 @@ components:
         - projectId
         - assigneeIds
         - title
+        - description
         - status
         - priority
       properties:
@@ -1001,9 +852,8 @@ components:
           minLength: 3
           maxLength: 150
         description:
-          type:
-            - string
-            - "null"
+          type: string
+          maxLength: 2000
         status:
           $ref: "#/components/schemas/TaskStatus"
     TaskAssigneesUpdate:
@@ -1064,93 +914,37 @@ components:
         createdAt:
           type: string
           format: date-time
-    Dashboard:
-      type: object
-      additionalProperties: false
-      required:
-        - projects
-      properties:
-        projects:
-          type: array
-          items:
-            $ref: "#/components/schemas/DashboardProject"
-    DashboardProject:
-      type: object
-      additionalProperties: false
-      required:
-        - project
-        - countsByStatus
-      properties:
-        project:
-          $ref: "#/components/schemas/Project"
-        countsByStatus:
-          $ref: "#/components/schemas/ProjectProgress/properties/countsByStatus"
-    ProjectProgress:
-      type: object
-      additionalProperties: false
-      required:
-        - projectId
-        - countsByStatus
-        - openTasks
-      properties:
-        projectId:
-          type: integer
-          minimum: 1
-        countsByStatus:
-          type: object
-          additionalProperties: false
-          required:
-            - TODO
-            - IN_PROGRESS
-            - DONE
-          properties:
-            TODO:
-              type: integer
-              minimum: 0
-            IN_PROGRESS:
-              type: integer
-              minimum: 0
-            DONE:
-              type: integer
-              minimum: 0
-        openTasks:
-          type: array
-          items:
-            $ref: "#/components/schemas/Task"
   responses:
     BadRequest:
       description: Pedido inválido ou campos obrigatórios inválidos.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ValidationError"
           example:
-            code: invalid_request
-            message: O pedido contém campos inválidos.
+            title:
+              - This field is required.
     Unauthorized:
       description: Autenticação em falta ou inválida.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ApiDetailError"
           example:
-            code: unauthorized
-            message: Autenticação necessária.
+            detail: Authentication credentials were not provided.
     Forbidden:
       description: Utilizador autenticado sem permissão para executar a operação.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ApiDetailError"
           example:
-            code: forbidden
-            message: Não tem permissão para executar esta operação.
+            detail: You do not have permission to perform this action.
     NotFound:
       description: Recurso inexistente ou não acessível ao utilizador.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: "#/components/schemas/ApiDetailError"
           example:
-            code: not_found
-            message: Recurso não encontrado.
+            detail: Not found.

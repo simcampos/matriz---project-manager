@@ -30,3 +30,15 @@
 - Comunica os pressupostos usados e assinala os que ainda precisam de confirmação.
 - No final, resume as alterações realizadas e indica as verificações executadas e os respetivos resultados. Em tarefas somente de leitura, indica que não alteraste ficheiros e resume os achados; se não foi possível validar algo, explica o motivo.
 - Não afirmes que testes, builds, publicação ou outras ações foram concluídos sem os ter executado e verificado.
+
+## Comandos de execução e verificação
+
+- Instalação e configuração local: seguir os passos de [README.md](./README.md).
+- Iniciar a base de dados local: `docker compose up -d db`.
+- Aplicar migrations: `.venv/bin/python backend/manage.py migrate`.
+- Verificar configuração Django: `.venv/bin/python backend/manage.py check`.
+- Executar testes backend: `.venv/bin/python backend/manage.py test apps.accounts apps.projects apps.tasks apps.comments`.
+- Executar testes frontend: `cd frontend && npm test`.
+- Criar build frontend: `cd frontend && npm run build`.
+- Iniciar backend: `DJANGO_SETTINGS_MODULE=config.settings .venv/bin/python backend/manage.py runserver`.
+- Iniciar frontend: `cd frontend && npm run dev`.

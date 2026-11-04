@@ -10,7 +10,7 @@ Este documento regista a decisão de **monólito modular** e a stack aprovada pa
 - Escala de referência: uma equipa pequena/média, até cerca de 50 utilizadores. Não é um limite funcional confirmado.
 - Sem integrações externas no MVP.
 - Stack inicial: Django/DRF, React/Vite, PostgreSQL e Django ORM.
-- Funcionalidades desta fase: autenticação, projetos e membros, tarefas com estado/prioridade, múltiplos responsáveis, comentários, pesquisa, progresso e painel inicial.
+- Funcionalidades implementadas: autenticação, CRUD e pesquisa de projetos, consulta de membros de projeto, tarefas com estado/prioridade e filtros, responsáveis, comentários e painel inicial. As limitações da API estão registadas em [implementation-plan.md](./implementation-plan.md).
 - Papéis e estados de tarefa fixos; sem múltiplas equipas nem permissões granulares.
 
 ## Abordagens consideradas
@@ -36,59 +36,60 @@ Justificação:
 
 ```mermaid
 flowchart LR
-    B[Browser<br/>Interface web] -->|HTTP / REST| A[API]
+    B[Browser] --> WEB[Interface React]
+    WEB -->|HTTP / REST| A[API Django REST Framework]
+    WEB --> DSH[Painel<br/>agrega projetos e tarefas]
     subgraph M[Monólito modular]
-        A --> AUTH[Autenticação e sessão Django]
-        A --> USR[Utilizadores e papéis]
+        A --> AUTH[Autenticação e sessões]
         A --> PRJ[Projetos e membros]
         A --> TSK[Tarefas]
         A --> CMT[Comentários]
-        A --> PRG[Progresso]
-        A --> DSH[Painel]
-        AUTH -.-> AZ[Autorização]
-        USR -.-> AZ
+        A --> ACC[Utilizadores e papéis]
+        AUTH -.-> AZ[Verificações de acesso nas views]
         PRJ -.-> AZ
         TSK -.-> AZ
         CMT -.-> AZ
-        PRG -.-> AZ
-        DSH -.-> AZ
     end
     AUTH --> DB[(PostgreSQL)]
-    USR --> DB
+    ACC --> DB
     PRJ --> DB
     TSK --> DB
     CMT --> DB
-    PRG --> DB
+    DSH --> A
 ```
 
 ## Componentes e responsabilidades
 
 | Componente | Responsabilidades | Dados que possui | Endpoints (OpenAPI) | Requisitos |
 |---|---|---|---|---|
-| **Interface web** | Ecrãs de autenticação, painel, projetos, tarefas, comentários e utilizadores/papéis; consome a API. | Nenhum | — | RF-01 a RF-15 |
-| **API** | Django REST Framework expõe o contrato REST, valida pedidos e traduz erros para os códigos do contrato (400, 401, 403, 404, 409). | Nenhum | Todos | Todos |
-| **Autenticação e sessão** | Django autentica por email e palavra-passe; as sessões são persistidas pelo backend de sessões de Django e invalidadas no logout. A API usa cookie de sessão e proteção CSRF. | `User`; `django_session` | `GET /csrf`, `POST /sessions`, `DELETE /sessions/current` | RF-01 |
-| **Utilizadores e papéis** | Consultar utilizadores; atribuir um dos três papéis; devolver o utilizador atual. | `User` | `GET /users`, `PATCH /users/{userId}`, `GET /users/me` | RF-02, RF-03 |
-| **Projetos e membros** | Criar, consultar, pesquisar, atualizar e eliminar projetos; gerir membros e determinar acesso. | `Project`, `ProjectMember` | `GET/POST /projects`, `GET/PATCH/DELETE /projects/{projectId}`, `/projects/{projectId}/members` e utilizadores elegíveis | RF-04, RF-05, RF-13 |
-| **Tarefas** | CRUD de tarefas; estado e prioridade; múltiplos responsáveis; filtros; tarefas do utilizador. | `Task`, `TaskAssignee` | `/projects/{projectId}/tasks`, `/projects/{projectId}/tasks/{taskId}`, `/projects/{projectId}/tasks/{taskId}/assignees`, `GET /users/me/tasks` | RF-06 a RF-10, RF-12 |
-| **Comentários** | Criar e listar comentários; atribuir autor autenticado e data no servidor. | `Comment` | `GET/POST /projects/{projectId}/tasks/{taskId}/comments` | RF-14 |
-| **Progresso e painel** | Calcular contagens atuais por estado e fornecer os projetos acessíveis com as respetivas contagens. | Nenhum | `GET /projects/{projectId}/progress`, `GET /dashboard` | RF-11, RF-15 |
-| **Autorização** (transversal) | Aplicar as regras de acesso por papel e por projeto antes de cada operação; não revelar recursos a quem não tem acesso. | Nenhum | Todos | RF-02, RF-05, RF-09, RF-14 |
-| **Armazenamento** | PostgreSQL, acedido pelo Django ORM; persistir entidades de domínio e tabelas de sessão/migração do framework. | Todos | — | — |
+| **Interface web** | Ecrãs de autenticação, painel, projetos e tarefas; consome a API e sincroniza as vistas após operações confirmadas. | Estado de apresentação | — | RF-01, RF-04, RF-06 a RF-15 |
+| **API** | Django REST Framework valida pedidos e devolve erros de validação, `detail` ou conflito conforme a operação. As listagens devolvem arrays sem paginação. | Nenhum | Rotas documentadas em [openapi.yaml](../openapi.yaml) | RF-01 a RF-15 |
+| **Autenticação e sessão** | Autenticação por email/palavra-passe, sessão Django no servidor e proteção CSRF para operações mutáveis. | `User`; `django_session` | `GET /csrf/`, `POST /sessions/`, `DELETE /sessions/current/` | RF-01 |
+| **Utilizadores e papéis** | Devolver o utilizador autenticado e o respetivo papel. Não existe API da aplicação para listar utilizadores ou alterar papéis. | `User` | `GET /users/me/` | RF-02, RF-03 |
+| **Projetos e membros** | CRUD e pesquisa de projetos; verificar acesso; consultar membros ativos e o gestor do projeto. A API não cria nem remove membros. | `Project`, `ProjectMember` | `/projects/`, `/projects/{projectId}/`, `GET /projects/{projectId}/members/` | RF-04, RF-05, RF-13 |
+| **Tarefas** | CRUD, filtros por estado/prioridade/responsável, atribuições e atualização restrita de estado por Developer atribuído. | `Task`, `TaskAssignee` | `/projects/{projectId}/tasks/`, detalhe, `/assignees/` | RF-06 a RF-10, RF-12 |
+| **Comentários** | Criar e listar por ordem de criação; o servidor define autor e data. | `Comment` | `/projects/{projectId}/tasks/{taskId}/comments/` | RF-14 |
+| **Painel** | Carregar projetos e tarefas pelas rotas existentes e calcular no browser contagens por estado e tarefas atribuídas ao utilizador. | Estado de apresentação | Sem endpoint próprio | RF-11, RF-12, RF-15 |
+| **Django Admin** | Interface administrativa disponibilizada pelo Django, fora do contrato REST da aplicação. | Modelos registados no Admin | `/admin/` | Fora do fluxo da API |
+| **Autorização** (transversal) | As views limitam consultas ao projeto acessível e verificam papel/gestor nas operações que alteram dados. | Nenhum | Aplicada nas rotas de projetos, tarefas e comentários | RF-02, RF-05, RF-09, RF-14 |
+| **Armazenamento** | PostgreSQL, acedido pelo Django ORM; persistir entidades, sessões e migrations. | Todos | — | — |
 
 ## Regras de fronteira entre módulos
 
-- Cada módulo é o único responsável pelos seus dados. Os outros módulos acedem-lhes através da interface pública do módulo, não diretamente ao armazenamento.
-- **Autorização é transversal:** as regras de acesso a projetos e tarefas são avaliadas num único sítio, para evitar decisões inconsistentes. Os módulos fornecem-lhe os factos de que precisa (papel, gestor, membros).
-- **Dependências previstas:** Tarefas usa Projetos (acesso, membros e elegibilidade); Comentários usa Tarefas e Autorização; Progresso/Painel usa Projetos e Tarefas; Projetos usa Utilizadores (papel do gestor).
-- **Dependência circular a vigiar:** a regra "não alterar o papel de quem gere projetos" faz Utilizadores consultar Projetos, e Projetos já consulta Utilizadores. Deve resolver-se com consultas através de interfaces públicas (por exemplo, "este utilizador gere projetos?"), sem partilhar estruturas internas.
-- Regras que atravessam módulos (responsável tem de ser membro, gestor tem de ter papel Project Manager) são aplicadas pela aplicação, não pelas chaves estrangeiras.
+- As apps Django organizam responsabilidades, mas ainda não formam fronteiras isoladas: há dependências diretas entre modelos e views de `accounts`, `projects`, `tasks` e `comments`.
+- As verificações de acesso são feitas nas views por consultas limitadas ao projeto e helpers de autorização. A implementação não usa uma única permission class global para todos os endpoints.
+- **Dependências atuais:** Tarefas consulta Projetos e Utilizadores para acesso/elegibilidade; Comentários reutiliza a consulta de tarefa autorizada; o Painel obtém projetos e tarefas através da API e calcula as contagens no frontend.
+- A classe `StrictSerializer` partilhada em `apps.common` rejeita campos desconhecidos nos serializers de escrita que a utilizam.
 
 ## Regras e escolhas registadas
 
-**Confirmado para a estrutura inicial:** Django server-side sessions; os códigos de estado `TODO`, `IN_PROGRESS`, `DONE`; os códigos de prioridade `LOW`, `MEDIUM`, `HIGH` com defaults `TODO` e `MEDIUM`; e eliminação em cascata de dados dependentes de projetos e tarefas. Os cookies de sessão usam proteção CSRF.
+**Comportamento implementado:** sessões Django no servidor; estados `TODO`, `IN_PROGRESS`, `DONE`; prioridades `LOW`, `MEDIUM`, `HIGH` com defaults `TODO` e `MEDIUM`; proteção CSRF; e eliminação em cascata de dados dependentes de projetos e tarefas. A listagem de comentários está ordenada por data e identificador.
 
 **Pressupostos de produto ainda por validar:** cada projeto tem um gestor único que conta implicitamente como membro; vários responsáveis podem estar associados a uma tarefa; progresso é visível a utilizadores com acesso ao projeto; e pedidos a projetos sem acesso devolvem 404. As regras propostas por papel constam de [constraints.md](./constraints.md) e ainda não são decisões aprovadas.
+
+## Funcionalidades ainda não implementadas
+
+Por decisão do utilizador, RF-03 (gestão de papéis pela aplicação) e RF-05 (associação de membros pelo gestor) ficam documentados como pendentes, sem alargar o âmbito desta entrega. Também não existem endpoints REST para tarefas pessoais, progresso do projeto ou painel; o frontend agrega dados de projetos e tarefas pelas rotas disponíveis.
 
 ## Decisões pendentes
 
