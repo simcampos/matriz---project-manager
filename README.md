@@ -51,7 +51,7 @@ A aplicação inclui migrations e um seed de demonstração idempotente. O seed 
 - Python 3.12, 3.13, 3.14 ou 3.15 (Django 6.1.3; [compatibilidade oficial](https://docs.djangoproject.com/en/6.1/releases/6.1/)).
 - Node.js 20.19 ou superior na série 20, ou 22.12 ou superior (requisito de Vite 8 no lockfile).
 - npm compatível com a versão instalada do Node.js.
-- Docker Engine com Docker Compose v2 para arrancar a base de dados incluída; o [compose.yaml](./compose.yaml) usa PostgreSQL 17. Em alternativa, pode ser usado um servidor PostgreSQL 17 local.
+- Docker Engine com Docker Compose v2 ou mais recente e suporte a `up --wait` para arrancar a base de dados incluída; o [compose.yaml](./compose.yaml) usa PostgreSQL 17. Em alternativa, pode ser usado um servidor PostgreSQL 17 local.
 
 ## Instalação e configuração local
 
@@ -63,7 +63,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements.txt
 cd frontend && npm ci
 cd ..
-docker compose up -d db
+docker compose up -d --wait db
 .venv/bin/python backend/manage.py migrate
 .venv/bin/python backend/manage.py seed_demo
 ```

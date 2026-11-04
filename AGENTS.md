@@ -34,7 +34,7 @@
 ## Comandos de execução e verificação
 
 - Instalação e configuração local: seguir os passos de [README.md](./README.md).
-- Iniciar a base de dados local: `docker compose up -d db`.
+- Iniciar a base de dados local: `docker compose up -d --wait db`.
 - Aplicar migrations: `.venv/bin/python backend/manage.py migrate`.
 - Verificar configuração Django: `.venv/bin/python backend/manage.py check`.
 - Executar testes backend: `.venv/bin/python backend/manage.py test apps.accounts apps.projects apps.tasks apps.comments`.
