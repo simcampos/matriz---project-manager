@@ -42,3 +42,12 @@
 - Criar build frontend: `cd frontend && npm run build`.
 - Iniciar backend: `DJANGO_SETTINGS_MODULE=config.settings .venv/bin/python backend/manage.py runserver`.
 - Iniciar frontend: `cd frontend && npm run dev`.
+
+## Ambiente de desenvolvimento no início do trabalho
+
+- No início de cada nova tarefa neste repositório, verificar se PostgreSQL, backend e frontend estão disponíveis, seguindo as verificações de [README.md](./README.md).
+- Se um serviço já estiver disponível, reutilizá-lo; arrancar apenas os serviços em falta, pela ordem base de dados, backend e frontend.
+- Depois de arrancar um serviço, confirmar que ficou pronto com o health check HTTP da API e um pedido HTTP à página do frontend.
+- Não parar serviços no fim da tarefa, a menos que o utilizador peça.
+- Não executar migrations, seed nem limpar dados automaticamente como parte do arranque. O seed é uma ação manual e idempotente, documentada no README.
+- Se não for possível arrancar algum serviço (por exemplo, dependências em falta ou porta ocupada), comunicar o erro concreto; não substituir nem terminar processos existentes sem autorização.

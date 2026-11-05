@@ -86,10 +86,31 @@ As passwords de demonstração são fictícias e locais. Consulta ou altera os r
 
 ## Executar
 
-Iniciar o backend e o frontend em terminais separados, a partir da raiz do repositório:
+### Verificar e reutilizar serviços em execução
+
+No início do trabalho, verificar a base de dados e os serviços antes de os arrancar. O health check da API confirma também a ligação à base de dados:
 
 ```sh
-.venv/bin/python backend/manage.py runserver
+docker compose ps db
+curl --fail --silent --show-error http://localhost:8000/api/health/
+curl --fail --silent --show-error --output /dev/null --write-out 'HTTP %{http_code}\n' http://localhost:5173/
+```
+
+Se a base de dados não estiver ativa, arrancá-la e esperar que fique pronta:
+
+```sh
+docker compose up -d --wait db
+```
+
+Se o backend ou frontend não responder, arrancar apenas o serviço em falta. Não parar os serviços no fim do trabalho. O arranque não executa migrations nem seed e não altera dados.
+
+### Arranque manual
+
+Quando necessário, iniciar o backend e o frontend em terminais separados, a partir da raiz do repositório:
+
+```sh
+cd backend
+../.venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 
 ```sh
