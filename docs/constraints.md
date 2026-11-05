@@ -22,13 +22,16 @@
 - Autenticação por email e palavra-passe com sessões Django armazenadas no servidor.
 - Códigos persistidos de estado `TODO`, `IN_PROGRESS`, `DONE`; de prioridade `LOW`, `MEDIUM`, `HIGH`; defaults `TODO` e `MEDIUM`.
 - Eliminação em cascata de dados dependentes de projetos e tarefas; os projetos com gestor e comentários com autor impedem a eliminação desse utilizador (`PROTECT`).
+- O Admin pode consultar todos os projetos, tarefas, responsáveis e comentários, mas não pode alterar projetos/tarefas, gerir responsáveis nem adicionar comentários.
+- O Admin pode listar utilizadores e alterar papéis existentes; não pode rebaixar o último Admin ativo nem retirar o papel Project Manager a um utilizador que gere projetos.
+- O Project Manager responsável pode associar utilizadores ativos de qualquer papel aos projetos que gere. O gestor conta implicitamente como membro e não pode ser removido; remover outro membro também remove as suas atribuições às tarefas do projeto.
 
 ## Pressupostos de produto ainda por validar
 
 - O MVP começa com uma equipa; suportar várias equipas fica fora do âmbito inicial.
 - Cada utilizador tem um papel principal entre Admin, Project Manager e Developer; acumulação de papéis não está definida. Os códigos persistidos são `ADMIN`, `PROJECT_MANAGER` e `DEVELOPER`.
-- Admin pode consultar utilizadores existentes e atribuir papéis; o alcance do seu acesso aos projetos está por definir.
-- Project Manager gere os projetos a que tem acesso e associa membros aos projetos.
+- A possibilidade de acumular papéis ainda não está definida.
+- Project Manager gere os projetos a que tem acesso e associa/remove utilizadores ativos como membros.
 - Cada projeto tem um único Project Manager responsável, que conta implicitamente como membro do projeto. O papel de quem gere projetos não pode ser alterado para outro papel.
 - Duração e expiração da sessão continuam por definir.
 - O resumo de progresso de um projeto é visível a qualquer utilizador com acesso a esse projeto.
@@ -59,21 +62,21 @@
 
 As regras acima não especificam mecanismos de implementação e não devem ser interpretadas como requisitos técnicos fechados.
 
-### Matriz de permissões proposta (não aprovada)
+### Matriz de permissões aprovada para esta implementação
 
 | Ação | Proposta |
 |---|---|
 | Criar projeto | Project Manager; o utilizador autenticado fica como gestor responsável. |
-| Consultar projeto | Gestor responsável e membros associados. |
-| Editar/eliminar projeto | Apenas o gestor responsável. |
-| Criar/editar/eliminar tarefa | Apenas o gestor responsável pelo projeto. |
-| Consultar tarefa/comentários | Utilizadores com acesso ao projeto. |
+| Consultar projetos, tarefas, responsáveis e comentários | Gestor responsável, membros associados e Admin; o Admin tem acesso global apenas de leitura. |
+| Editar/eliminar projeto | Apenas o gestor responsável; Admin não pode alterar. |
+| Criar/editar/eliminar tarefa | Apenas o gestor responsável pelo projeto; Admin não pode alterar. |
+| Consultar tarefa/comentários | Utilizadores com acesso ao projeto e Admin. |
 | Alterar estado | Developer apenas numa tarefa que lhe está atribuída; o gestor do projeto pode alterar tarefas do seu projeto. |
-| Comentar | Utilizadores com acesso ao projeto (confirmado para esta implementação). |
+| Comentar | Utilizadores com acesso ao projeto, exceto Admin. |
 | Associar/remover responsáveis | Apenas o gestor do projeto; membros ativos do projeto ou o gestor (confirmado para esta implementação). |
-| Acesso do Admin a projetos | Não conceder acesso automático apenas pelo papel Admin até validação; o alcance administrativo permanece pendente. |
+| Gerir membros | Apenas o Project Manager responsável; utilizadores ativos de qualquer papel podem ser adicionados. Remover um membro também remove as suas atribuições no projeto. |
 
-As restantes linhas da matriz continuam propostas para validação. Para esta implementação, o utilizador confirmou as regras de comentários e responsáveis indicadas acima. O gestor conta implicitamente como elegível; membros não podem gerir atribuições.
+O gestor conta implicitamente como membro e como responsável elegível; membros não podem gerir atribuições ou a composição do projeto.
 
 ### Propostas mínimas de segurança por aprovar
 
@@ -112,8 +115,8 @@ Ficam fora do âmbito inicial: notificações, menções, anexos, automações, 
 
 ## Questões abertas
 
-- Confirmar as permissões de cada papel, o alcance do Admin e o modelo de associação a projetos.
-- Validar os pressupostos de produto adotados na Ficha PL 02: gestor único com associação implícita, recusa de alterar o papel de quem gere projetos, visibilidade do progresso.
+- Confirmar possibilidade de acumular papéis e transições de estado das tarefas.
+- Validar com o cliente as restantes decisões de produto adotadas nesta implementação, incluindo gestor único com associação implícita e visibilidade do progresso.
 - Confirmar os campos obrigatórios e se tarefas podem ficar sem responsável.
 - Definir como a interface confirma eliminações em cascata.
 - Definir o conteúdo, ordenação, validação, edição, remoção e retenção de comentários.

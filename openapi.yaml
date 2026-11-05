@@ -5,7 +5,8 @@ info:
   description: |
     Contrato das rotas REST implementadas pelo backend Matriz. Os caminhos
     usam o prefixo /api e barras finais. As listagens devolvem arrays completos
-    e não têm paginação.
+    e não têm paginação. Admin tem leitura global dos projetos e dados das
+    tarefas, sem permissões de alteração nem de adicionar comentários.
 servers:
   - url: /api
     description: Prefixo da API na origem da aplicação.
@@ -123,13 +124,69 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /users/:
+    get:
+      operationId: listUsers
+      summary: Listar utilizadores
+      description: Operação reservada ao Admin.
+      responses:
+        "200":
+          description: Utilizadores existentes, incluindo estado ativo e papel.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /users/{userId}/:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    patch:
+      operationId: updateUserRole
+      summary: Alterar papel de utilizador
+      description: |
+        Operação reservada ao Admin. Só aceita os papéis definidos.
+        A alteração é recusada com 409 se deixar a equipa sem Admin ativo
+        ou se tentar retirar o papel Project Manager a quem gere projetos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRoleUpdate"
+      responses:
+        "200":
+          description: Utilizador atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Alteração deixaria a equipa sem Admin ou projeto sem gestor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDetailError"
   /projects/:
     get:
       operationId: listProjects
       summary: Listar projetos acessíveis
       description: |
-        Devolve apenas projetos a que o utilizador autenticado tem acesso,
-        como gestor ou como membro.
+        Devolve projetos a que o utilizador autenticado tem acesso, como
+        gestor ou membro. O Admin pode consultar todos os projetos, sem
+        permissões de alteração.
         A pesquisa por nome não distingue maiúsculas de minúsculas.
         Quando não existem projetos acessíveis, devolve uma lista vazia.
       parameters:
@@ -192,7 +249,9 @@ paths:
     get:
       operationId: getProject
       summary: Consultar projeto
-      description: Apenas utilizadores com acesso ao projeto podem consultá-lo.
+      description: |
+        Gestor e membros podem consultar o projeto. O Admin pode consultar
+        todos os projetos, mas não pode alterá-los.
       responses:
         "200":
           description: Projeto consultado.
@@ -253,6 +312,7 @@ paths:
       description: |
         Requer acesso ao projeto. A lista inclui utilizadores ativos associados
         ao projeto e o gestor ativo, que conta implicitamente como membro.
+        O Admin pode consultar membros de todos os projetos.
       responses:
         "200":
           description: Utilizadores ativos elegíveis para atribuição, incluindo o gestor.
@@ -266,6 +326,90 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      operationId: addProjectMember
+      summary: Associar utilizador ativo ao projeto
+      description: |
+        Operação reservada ao Project Manager responsável. Utilizadores ativos
+        de qualquer papel podem ser associados. Repetir uma associação ou
+        tentar associar o gestor implícito devolve 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectMemberCreate"
+      responses:
+        "201":
+          description: Utilizador associado ao projeto.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Utilizador já associado ou gestor implícito.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDetailError"
+  /projects/{projectId}/eligible-members/:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listEligibleProjectMembers
+      summary: Listar utilizadores elegíveis para associar ao projeto
+      description: |
+        Operação reservada ao Project Manager responsável. Devolve utilizadores
+        ativos de qualquer papel, exceto o gestor e membros atuais.
+      responses:
+        "200":
+          description: Utilizadores elegíveis para associação ao projeto.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{projectId}/members/{userId}/:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/UserId"
+    delete:
+      operationId: removeProjectMember
+      summary: Remover membro do projeto
+      description: |
+        Operação reservada ao Project Manager responsável. Remove também as
+        atribuições do utilizador às tarefas deste projeto. O gestor implícito
+        não pode ser removido.
+      responses:
+        "204":
+          description: Membro e respetivas atribuições removidos.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: O gestor do projeto é um membro implícito.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiDetailError"
   /projects/{projectId}/tasks/:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -273,9 +417,9 @@ paths:
       operationId: listProjectTasks
       summary: Listar e filtrar tarefas do projeto
       description: |
-        Requer acesso ao projeto. Os filtros são opcionais e combinam-se
-        quando são enviados. A resposta inclui todos os resultados e não é
-        paginada.
+        Requer acesso ao projeto. O Admin pode consultar tarefas de todos os
+        projetos. Os filtros são opcionais e combinam-se quando enviados. A
+        resposta inclui todos os resultados e não é paginada.
       parameters:
         - name: status
           in: query
@@ -358,7 +502,9 @@ paths:
     get:
       operationId: getProjectTask
       summary: Consultar tarefa
-      description: Apenas utilizadores com acesso ao projeto podem consultar a tarefa.
+      description: |
+        Gestor e membros podem consultar a tarefa. O Admin pode consultar
+        tarefas de todos os projetos, mas não pode alterá-las.
       responses:
         "200":
           description: Tarefa consultada.
@@ -426,7 +572,7 @@ paths:
     get:
       operationId: listTaskAssignees
       summary: Listar responsáveis da tarefa
-      description: Requer acesso ao projeto.
+      description: Utilizadores com acesso ao projeto e Admin podem consultar responsáveis.
       responses:
         "200":
           description: Responsáveis atuais da tarefa.
@@ -549,8 +695,9 @@ paths:
       operationId: listTaskComments
       summary: Listar comentários da tarefa
       description: |
-        Requer acesso ao projeto. A ordenação é ascendente por data de criação
-        e, em caso de empate, pelo identificador do comentário.
+        Utilizadores com acesso ao projeto e Admin podem consultar comentários.
+        A ordenação é ascendente por data de criação e, em caso de empate,
+        pelo identificador do comentário.
       responses:
         "200":
           description: Comentários com autor e data de criação.
@@ -568,9 +715,10 @@ paths:
       operationId: createTaskComment
       summary: Adicionar comentário à tarefa
       description: |
-        Requer acesso ao projeto. O autor é o utilizador autenticado e a data
-        é atribuída pelo servidor. O conteúdo é obrigatório, tem entre 1 e
-        2000 caracteres e não pode ser composto apenas por espaços.
+        Utilizadores com acesso ao projeto, exceto Admin, podem adicionar
+        comentários. O autor é o utilizador autenticado e a data é atribuída
+        pelo servidor. O conteúdo é obrigatório, tem entre 1 e 2000 caracteres
+        e não pode ser composto apenas por espaços.
       requestBody:
         required: true
         content:
@@ -608,6 +756,14 @@ components:
       in: path
       required: true
       description: Identificador do projeto.
+      schema:
+        type: integer
+        minimum: 1
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: Identificador do utilizador.
       schema:
         type: integer
         minimum: 1
@@ -665,6 +821,14 @@ components:
         - ADMIN
         - PROJECT_MANAGER
         - DEVELOPER
+    UserRoleUpdate:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+      properties:
+        role:
+          $ref: "#/components/schemas/UserRole"
     SessionCreate:
       type: object
       additionalProperties: false
@@ -759,6 +923,15 @@ components:
           format: email
         role:
           $ref: "#/components/schemas/UserRole"
+    ProjectMemberCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+      properties:
+        userId:
+          type: integer
+          minimum: 1
     TaskStatus:
       type: string
       enum:

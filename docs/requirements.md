@@ -36,11 +36,11 @@ Neste documento, **Admin**, **Project Manager** e **Developer** são os nomes pr
 
 | Tipo | Responsabilidades propostas |
 |---|---|
-| **Admin** | Consultar utilizadores existentes e atribuir papéis; o alcance do acesso administrativo a projetos ainda não está definido. |
-| **Project Manager** | Criar e gerir projetos, organizar tarefas, atribuir responsáveis e acompanhar o progresso. |
+| **Admin** | Consultar utilizadores existentes e atribuir papéis; consultar todos os projetos e tarefas sem os alterar nem comentar. |
+| **Project Manager** | Criar e gerir projetos, associar/remover membros, organizar tarefas, atribuir responsáveis e acompanhar o progresso. |
 | **Developer** | Consultar projetos a que tem acesso e atualizar o estado das tarefas que lhe estão atribuídas. |
 
-As permissões exatas, o acesso administrativo e a possibilidade de acumular papéis ainda precisam de confirmação.
+As permissões descritas para Admin e gestão de membros foram confirmadas para esta implementação. A possibilidade de acumular papéis continua por definir.
 
 ## Requisitos funcionais
 
@@ -49,19 +49,19 @@ Os requisitos abaixo descrevem o âmbito desta fase. A ficha de implementação 
 | ID | Requisito | Prioridade |
 |---|---|---|
 | **RF-01** | O sistema deve permitir que um utilizador inicie e termine sessão usando email e palavra-passe. | Alta |
-| **RF-02** | O sistema deve distinguir os papéis Admin, Project Manager e Developer e limitar as ações de acordo com as permissões definidas. | Alta |
-| **RF-03** | O Admin deve poder consultar os utilizadores da equipa e atribuir a utilizadores existentes um dos papéis disponíveis. | Alta |
+| **RF-02** | O sistema deve distinguir os papéis Admin, Project Manager e Developer e limitar as ações de acordo com as permissões definidas. O Admin pode consultar todos os projetos e tarefas, mas não pode alterá-los nem comentar. | Alta |
+| **RF-03** | O Admin deve poder consultar os utilizadores da equipa e atribuir a utilizadores existentes um dos papéis disponíveis. A operação não pode deixar a equipa sem Admin ativo nem retirar o papel Project Manager a quem gere projetos. | Alta |
 | **RF-04** | O Project Manager deve poder criar, consultar, atualizar e eliminar projetos a que tem acesso de gestão. A proposta para validação é exigir título e permitir descrição opcional. A implementação atual valida títulos entre 3 e 100 caracteres e descrições até 1000 caracteres; estes limites ainda carecem de confirmação do cliente. | Alta |
-| **RF-05** | O Project Manager deve poder associar membros existentes aos projetos que gere. Um utilizador não associado não deve poder consultar nem alterar o projeto ou as suas tarefas. O Project Manager responsável conta implicitamente como membro do projeto. | Alta |
+| **RF-05** | O Project Manager deve poder associar e remover utilizadores ativos de qualquer papel aos projetos que gere. Ao remover um membro, as suas atribuições às tarefas desse projeto também são removidas. Um utilizador não associado não deve poder consultar nem alterar o projeto ou as suas tarefas; o Project Manager responsável conta implicitamente como membro. | Alta |
 | **RF-06** | O Project Manager deve poder criar, consultar, atualizar e eliminar tarefas associadas a um projeto. O título é obrigatório, tem entre 3 e 150 caracteres e não pode conter apenas espaços; a descrição é opcional e limitada a 2000 caracteres. As tarefas aceitam os estados `TODO`, `IN_PROGRESS`, `DONE` e prioridades `LOW`, `MEDIUM`, `HIGH`; os defaults são `TODO` e `MEDIUM`. | Alta |
 | **RF-07** | O sistema deve disponibilizar estados fixos `TODO`, `IN_PROGRESS` e `DONE`, apresentados como “Por fazer”, “Em progresso” e “Concluída”. | Alta |
 | **RF-08** | O Project Manager deve poder associar e remover responsáveis de uma tarefa. Só utilizadores ativos que sejam membros do projeto ou o seu gestor são elegíveis; uma associação duplicada é recusada com conflito. A lista pode ficar vazia. | Alta |
 | **RF-09** | O Developer deve poder atualizar o estado das tarefas que lhe estão atribuídas e a que tem acesso. O Project Manager deve poder atualizar tarefas dos projetos que gere. | Alta |
 | **RF-10** | O sistema deve apresentar as tarefas de um projeto numa lista, com filtragem por estado e prioridade; o filtro por responsável do MVP anterior pode manter-se. | Alta |
-| **RF-11** | O sistema deve apresentar, por projeto, a contagem de tarefas por estado e a lista de tarefas em aberto. A proposta é definir tarefas em aberto como tarefas em estado diferente de `DONE`; a visibilidade do resumo segue as regras de acesso a validar. | Alta |
+| **RF-11** | O sistema deve apresentar, por projeto, a contagem de tarefas por estado e a lista de tarefas em aberto. Tarefas em aberto são as que estão num estado diferente de `DONE`; a informação está disponível a utilizadores com acesso ao projeto e ao Admin em modo de consulta. | Alta |
 | **RF-12** | O sistema deve permitir que o utilizador autenticado consulte as tarefas que lhe estão atribuídas em todos os projetos a que tem acesso, com filtragem opcional por estado e prioridade. | Média |
 | **RF-13** | O sistema deve permitir pesquisar projetos pelo nome, limitando os resultados aos projetos acessíveis ao utilizador autenticado. | Alta |
-| **RF-14** | Utilizadores com acesso ao projeto podem adicionar e listar comentários numa tarefa. O conteúdo é obrigatório, tem entre 1 e 2000 caracteres e não pode ser apenas espaços; o backend define autor e data, e a lista é cronológica (mais antigos primeiro). | Alta |
+| **RF-14** | Utilizadores com acesso ao projeto, exceto o Admin, podem adicionar comentários numa tarefa; utilizadores com acesso e o Admin podem consultá-los. O conteúdo é obrigatório, tem entre 1 e 2000 caracteres e não pode ser apenas espaços; o backend define autor e data, e a lista é cronológica (mais antigos primeiro). | Alta |
 | **RF-15** | O painel inicial deve apresentar os projetos acessíveis ao utilizador e as contagens de tarefas por estado em cada projeto. | Alta |
 
 Os critérios de aceitação detalhados estão em [user-stories.md](./user-stories.md).
@@ -133,11 +133,11 @@ As funcionalidades seguintes não fazem parte do MVP e só devem ser considerada
 - Confirmar se prioridade deve poder ser alterada para além dos defaults aprovados.
 - Confirmar se uma tarefa pode ficar sem responsáveis e se os responsáveis têm de ser membros do projeto.
 - Estados de tarefa e transições permitidas.
-- Regras de papéis, permissões, alcance do Admin, associação a projetos e atribuição de tarefas.
+- Possibilidade de acumular papéis e regras de transição entre estados das tarefas.
 - A eliminação em cascata remove dados dependentes de projetos e tarefas; a interface deve tornar a consequência explícita.
 - Definir o conteúdo permitido nos comentários, ordem da listagem e possibilidade de edição ou remoção (fora das operações mínimas pedidas).
 - Validar que tarefas em aberto são as que não estão “Concluídas” e se o progresso deve incluir percentagens.
 - Requisitos mínimos e mensuráveis de segurança, privacidade, disponibilidade e desempenho.
 - Como criar, convidar, desativar e remover utilizadores; o MVP atual só descreve a gestão de papéis para utilizadores existentes.
 - Como tratar atualizações concorrentes e falhas de gravação.
-- Validar as decisões adotadas na Ficha PL 02: gestor único por projeto que conta implicitamente como membro, recusa de alterar o papel de quem gere projetos, resumo de progresso visível a qualquer utilizador com acesso ao projeto, sessão invalidada no servidor ao terminar sessão e vista das tarefas atribuídas ao utilizador (RF-12).
+- Validar com o cliente as restantes decisões adotadas na Ficha PL 02, incluindo gestor único por projeto e a sua associação implícita, resumo de progresso, sessão invalidada no servidor ao terminar sessão e vista das tarefas atribuídas ao utilizador (RF-12).

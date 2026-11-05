@@ -619,6 +619,97 @@ button:disabled {
   color: #475569;
 }
 
+.project-members {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.project-members h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.project-member-list,
+.user-role-list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-member-list li,
+.user-role-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.project-member-list li > div,
+.user-role-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-member-list li span,
+.user-role-identity span,
+.user-role-current {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.project-member-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.project-member-form label {
+  grid-column: 1 / -1;
+}
+
+.project-member-form select,
+.user-role-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #172554;
+  font: inherit;
+}
+
+.user-role-form {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.user-role-form label {
+  grid-column: 1 / -1;
+}
+
+.user-role-identity strong {
+  overflow-wrap: anywhere;
+}
+
+.read-only-note {
+  margin: 16px 0 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -689,6 +780,22 @@ button:disabled {
 
   .assignee-form label {
     grid-column: auto;
+  }
+
+  .project-member-form,
+  .user-role-form {
+    grid-template-columns: 1fr;
+  }
+
+  .project-member-form label,
+  .user-role-form label {
+    grid-column: auto;
+  }
+
+  .project-member-list li,
+  .user-role-list li {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .assignee-list li {

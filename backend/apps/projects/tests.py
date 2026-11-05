@@ -240,6 +240,163 @@ class ProjectApiTests(TestCase):
             404,
         )
 
+    def test_admin_can_read_all_project_data_but_cannot_change_it(self):
+        task = Task.objects.create(project=self.project, title="Visible task")
+        self.client.force_authenticate(self.admin)
+
+        self.assertEqual(
+            self.client.get("/api/projects/").json()[0]["projectId"],
+            self.project.pk,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/projects/{self.project.pk}/").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/projects/{self.project.pk}/tasks/"
+            ).json()[0]["taskId"],
+            task.pk,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/projects/{self.project.pk}/members/").status_code,
+            200,
+        )
+
+        self.assertEqual(
+            self.client.patch(
+                f"/api/projects/{self.project.pk}/",
+                {"title": "Changed by Admin"},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.delete(f"/api/projects/{self.project.pk}/").status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/api/projects/{self.project.pk}/tasks/",
+                {"title": "Admin task"},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/api/projects/{self.project.pk}/members/",
+                {"userId": self.outsider.pk},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/projects/{self.project.pk}/eligible-members/"
+            ).status_code,
+            403,
+        )
+
+    def test_project_manager_can_add_and_remove_members_and_assignments(self):
+        inactive = User.objects.create_user(
+            "inactive@example.test",
+            "test-password",
+            role=User.Role.DEVELOPER,
+            is_active=False,
+        )
+        task = Task.objects.create(project=self.project, title="Assigned task")
+        members_url = f"/api/projects/{self.project.pk}/members/"
+        eligible_url = f"/api/projects/{self.project.pk}/eligible-members/"
+        self.client.force_authenticate(self.manager)
+
+        eligible = self.client.get(eligible_url)
+        self.assertEqual(eligible.status_code, 200)
+        eligible_ids = {user["userId"] for user in eligible.json()}
+        self.assertIn(self.admin.pk, eligible_ids)
+        self.assertIn(self.outsider.pk, eligible_ids)
+        self.assertNotIn(self.manager.pk, eligible_ids)
+        self.assertNotIn(self.member.pk, eligible_ids)
+        self.assertNotIn(inactive.pk, eligible_ids)
+
+        added = self.client.post(
+            members_url,
+            {"userId": self.outsider.pk},
+            format="json",
+        )
+        self.assertEqual(added.status_code, 201)
+        self.assertEqual(added.json()["userId"], self.outsider.pk)
+        self.assertEqual(
+            self.client.post(
+                members_url,
+                {"userId": self.outsider.pk},
+                format="json",
+            ).status_code,
+            409,
+        )
+        self.assertEqual(
+            self.client.post(
+                members_url,
+                {"userId": self.manager.pk},
+                format="json",
+            ).status_code,
+            409,
+        )
+        self.assertEqual(
+            self.client.post(
+                members_url,
+                {"userId": inactive.pk},
+                format="json",
+            ).status_code,
+            400,
+        )
+
+        TaskAssignee.objects.create(task=task, user=self.outsider)
+        self.assertEqual(
+            self.client.delete(
+                f"{members_url}{self.outsider.pk}/"
+            ).status_code,
+            204,
+        )
+        self.assertFalse(
+            ProjectMember.objects.filter(
+                project=self.project,
+                user=self.outsider,
+            ).exists()
+        )
+        self.assertFalse(
+            TaskAssignee.objects.filter(task=task, user=self.outsider).exists()
+        )
+
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(
+            self.client.get(f"/api/projects/{self.project.pk}/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/projects/{self.project.pk}/tasks/").status_code,
+            404,
+        )
+
+    def test_only_project_manager_can_manage_members(self):
+        members_url = f"/api/projects/{self.project.pk}/members/"
+        eligible_url = f"/api/projects/{self.project.pk}/eligible-members/"
+        self.client.force_authenticate(self.member)
+
+        self.assertEqual(self.client.get(eligible_url).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                members_url,
+                {"userId": self.outsider.pk},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.delete(f"{members_url}{self.member.pk}/").status_code,
+            403,
+        )
+
     def test_manager_can_update_and_delete_with_cascade(self):
         task = Task.objects.create(project=self.project, title="Task")
         TaskAssignee.objects.create(task=task, user=self.member)

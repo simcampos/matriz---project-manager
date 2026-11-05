@@ -58,3 +58,10 @@ class ProjectMemberUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["userId", "email", "role"]
+
+
+class ProjectMemberCreateSerializer(StrictSerializer):
+    userId = serializers.PrimaryKeyRelatedField(
+        source="user",
+        queryset=User.objects.filter(is_active=True),
+    )

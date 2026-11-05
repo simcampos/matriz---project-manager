@@ -1,7 +1,9 @@
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import User
 from apps.comments.models import Comment
 from apps.comments.serializers import CommentCreateSerializer, CommentSerializer
 from apps.tasks.views import get_project_task
@@ -20,6 +22,11 @@ class ProjectTaskCommentListCreateView(APIView):
 
     def post(self, request, project_id, task_id):
         task = get_project_task(request.user, project_id, task_id)
+        if request.user.role == User.Role.ADMIN:
+            return Response(
+                {"detail": "Admin access to projects is read-only."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = CommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = Comment.objects.create(

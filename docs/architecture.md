@@ -65,13 +65,13 @@ flowchart LR
 | **Interface web** | Ecrãs de autenticação, painel, projetos e tarefas; consome a API e sincroniza as vistas após operações confirmadas. | Estado de apresentação | — | RF-01, RF-04, RF-06 a RF-15 |
 | **API** | Django REST Framework valida pedidos e devolve erros de validação, `detail` ou conflito conforme a operação. As listagens devolvem arrays sem paginação. | Nenhum | Rotas documentadas em [openapi.yaml](../openapi.yaml) | RF-01 a RF-15 |
 | **Autenticação e sessão** | Autenticação por email/palavra-passe, sessão Django no servidor e proteção CSRF para operações mutáveis. | `User`; `django_session` | `GET /csrf/`, `POST /sessions/`, `DELETE /sessions/current/` | RF-01 |
-| **Utilizadores e papéis** | Devolver o utilizador autenticado e o respetivo papel. Não existe API da aplicação para listar utilizadores ou alterar papéis. | `User` | `GET /users/me/` | RF-02, RF-03 |
-| **Projetos e membros** | CRUD e pesquisa de projetos; verificar acesso; consultar membros ativos e o gestor do projeto. A API não cria nem remove membros. | `Project`, `ProjectMember` | `/projects/`, `/projects/{projectId}/`, `GET /projects/{projectId}/members/` | RF-04, RF-05, RF-13 |
+| **Utilizadores e papéis** | Devolver o utilizador autenticado; Admin lista utilizadores e altera papéis, protegendo o último Admin ativo e gestores de projetos. | `User` | `/users/me/`, `GET /users/`, `PATCH /users/{userId}/` | RF-02, RF-03 |
+| **Projetos e membros** | CRUD e pesquisa de projetos; verificar acesso; consultar, associar e remover membros ativos. Admin tem leitura global; o gestor não pode ser removido e remover membro limpa as suas atribuições no projeto. | `Project`, `ProjectMember` | `/projects/`, `/projects/{projectId}/`, `/projects/{projectId}/members/`, `/eligible-members/` | RF-04, RF-05, RF-13 |
 | **Tarefas** | CRUD, filtros por estado/prioridade/responsável, atribuições e atualização restrita de estado por Developer atribuído. | `Task`, `TaskAssignee` | `/projects/{projectId}/tasks/`, detalhe, `/assignees/` | RF-06 a RF-10, RF-12 |
 | **Comentários** | Criar e listar por ordem de criação; o servidor define autor e data. | `Comment` | `/projects/{projectId}/tasks/{taskId}/comments/` | RF-14 |
 | **Painel** | Carregar projetos e tarefas pelas rotas existentes e calcular no browser contagens por estado e tarefas atribuídas ao utilizador. | Estado de apresentação | Sem endpoint próprio | RF-11, RF-12, RF-15 |
 | **Django Admin** | Interface administrativa disponibilizada pelo Django, fora do contrato REST da aplicação. | Modelos registados no Admin | `/admin/` | Fora do fluxo da API |
-| **Autorização** (transversal) | As views limitam consultas ao projeto acessível e verificam papel/gestor nas operações que alteram dados. | Nenhum | Aplicada nas rotas de projetos, tarefas e comentários | RF-02, RF-05, RF-09, RF-14 |
+| **Autorização** (transversal) | As views limitam consultas ao projeto acessível, exceto Admin que tem leitura global; operações de escrita verificam papel/gestor e Admin não pode alterar dados do projeto ou adicionar comentários. | Nenhum | Aplicada nas rotas de utilizadores, projetos, membros, tarefas e comentários | RF-02, RF-03, RF-05, RF-09, RF-14 |
 | **Armazenamento** | PostgreSQL, acedido pelo Django ORM; persistir entidades, sessões e migrations. | Todos | — | — |
 
 ## Regras de fronteira entre módulos
@@ -85,11 +85,11 @@ flowchart LR
 
 **Comportamento implementado:** sessões Django no servidor; estados `TODO`, `IN_PROGRESS`, `DONE`; prioridades `LOW`, `MEDIUM`, `HIGH` com defaults `TODO` e `MEDIUM`; proteção CSRF; e eliminação em cascata de dados dependentes de projetos e tarefas. A listagem de comentários está ordenada por data e identificador.
 
-**Pressupostos de produto ainda por validar:** cada projeto tem um gestor único que conta implicitamente como membro; vários responsáveis podem estar associados a uma tarefa; progresso é visível a utilizadores com acesso ao projeto; e pedidos a projetos sem acesso devolvem 404. As regras propostas por papel constam de [constraints.md](./constraints.md) e ainda não são decisões aprovadas.
+**Decisões de autorização implementadas:** Admin consulta todos os projetos, tarefas, responsáveis e comentários em modo de leitura; não pode alterar projetos/tarefas, gerir responsáveis ou adicionar comentários. O Admin pode gerir papéis, mas não pode deixar a equipa sem Admin ativo nem rebaixar um gestor de projetos. Apenas o Project Manager responsável gere membros; são elegíveis contas ativas de qualquer papel, e remover um membro também remove as suas atribuições às tarefas do projeto. Pedidos de utilizadores sem acesso a um projeto devolvem 404.
 
 ## Funcionalidades ainda não implementadas
 
-Por decisão do utilizador, RF-03 (gestão de papéis pela aplicação) e RF-05 (associação de membros pelo gestor) ficam documentados como pendentes, sem alargar o âmbito desta entrega. Também não existem endpoints REST para tarefas pessoais, progresso do projeto ou painel; o frontend agrega dados de projetos e tarefas pelas rotas disponíveis.
+RF-03 (gestão de papéis) e RF-05 (gestão de membros) estão implementados na API e interface. Não existem endpoints REST para tarefas pessoais, progresso do projeto ou painel; o frontend agrega dados de projetos e tarefas pelas rotas disponíveis.
 
 ## Decisões pendentes
 
@@ -100,7 +100,6 @@ Por decisão do utilizador, RF-03 (gestão de papéis pela aplicação) e RF-05 
 | Comentários | Limites de conteúdo, ordenação, edição/remoção e retenção. |
 | Pesquisa | Correspondência por nome, sensibilidade a maiúsculas/acentos e comportamento sem resultados. |
 | Alterações concorrentes | Como evitar perda silenciosa de alterações numa tarefa (por exemplo, um campo de versão ou data de atualização, que o modelo não tem). |
-| Alcance do Admin sobre projetos | Por definir nos requisitos. |
 | Proteção CSRF e origens | Configuração de produção para o cookie de sessão, token CSRF e pedidos de origem cruzada. |
 | Alojamento, ambientes e publicação | Não definidos. |
 | Observabilidade, backups e recuperação | Não definidos. |

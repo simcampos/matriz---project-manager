@@ -24,6 +24,11 @@ class TaskCommentApiTests(TestCase):
             "test-password",
             role=User.Role.DEVELOPER,
         )
+        self.admin = User.objects.create_user(
+            "admin@example.test",
+            "test-password",
+            role=User.Role.ADMIN,
+        )
         self.project = Project.objects.create(
             manager=self.manager,
             title="Comment project",
@@ -115,4 +120,17 @@ class TaskCommentApiTests(TestCase):
             ).status_code,
             404,
         )
+        self.assertEqual(self.task.comments.count(), 0)
+
+    def test_admin_can_read_comments_but_cannot_add_them(self):
+        self.client.force_authenticate(self.admin)
+
+        self.assertEqual(self.client.get(self.comments_url).status_code, 200)
+        response = self.client.post(
+            self.comments_url,
+            {"content": "Admin comment"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
         self.assertEqual(self.task.comments.count(), 0)

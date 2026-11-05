@@ -38,8 +38,9 @@ As FKs de `Task.project`, `ProjectMember.project`, `ProjectMember.user`, `TaskAs
 ## Regras e pressupostos a confirmar
 
 - Cada projeto tem um único gestor responsável (proposta adotada na Ficha PL 02, a validar com o cliente). Não está decidido se pode haver vários Project Managers com poderes de gestão sobre o mesmo projeto.
-- O Project Manager responsável conta implicitamente como membro: tem acesso ao projeto, aparece na lista de membros e pode ser responsável por tarefas, sem registo em `ProjectMember`. Os restantes membros obtêm acesso através de `ProjectMember`. O alcance de acesso do Admin ainda não está definido.
+- O Project Manager responsável conta implicitamente como membro: tem acesso ao projeto, aparece na lista de membros e pode ser responsável por tarefas, sem registo em `ProjectMember`. Os restantes membros obtêm acesso através de `ProjectMember`. O Admin pode consultar todos os projetos e dados das tarefas, mas não pode alterá-los nem adicionar comentários.
 - `Project.manager_id` tem de referir um utilizador com papel Project Manager. A alteração do papel de um utilizador que gere projetos para outro papel é recusada. Esta regra tem de ser verificada pela aplicação, pois não fica garantida pelas chaves estrangeiras.
+- Podem ser associados como membros utilizadores ativos de qualquer papel. O Project Manager responsável não pode ser removido; remover outro membro também elimina as suas atribuições às tarefas do projeto. A alteração de papel não pode deixar a equipa sem Admin ativo.
 - Um utilizador tem um único papel principal. A acumulação de papéis não está definida.
 - Cada responsável tem de ser membro ativo do projeto ou o gestor; esta regra confirmada para a implementação envolve `Task`, `TaskAssignee`, `ProjectMember` e `Project.manager_id` e não fica garantida apenas pelas chaves estrangeiras.
 - O âmbito exige vários responsáveis; a cardinalidade mínima e se um projeto pode ter tarefas sem responsáveis carecem de confirmação.

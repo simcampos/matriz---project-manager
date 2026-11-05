@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import Dashboard from "./Dashboard";
+import ProjectMembersPanel from "./ProjectMembersPanel";
 import TasksPanel from "./TasksPanel";
+import UsersPanel from "./UsersPanel";
 import {
   apiRequest,
   ensureCsrfCookie,
@@ -268,6 +270,10 @@ function ProjectDetails({
           </button>
         </div>
       )}
+      <ProjectMembersPanel
+        canManage={canManage}
+        project={project}
+      />
       <TasksPanel
         canManage={canManage}
         key={project.projectId}
@@ -469,6 +475,19 @@ export default function App() {
     refreshProjects("");
   }
 
+  function showUsers() {
+    setProjectMessage("");
+    setProjectView("users");
+  }
+
+  async function handleCurrentUserUpdated(updatedUser) {
+    setUser(updatedUser);
+    if (updatedUser.role !== "ADMIN") {
+      setProjectView("dashboard");
+      await refreshProjects("");
+    }
+  }
+
   async function openProject(projectId) {
     setPending(true);
     setProjectMessage("");
@@ -615,9 +634,15 @@ export default function App() {
                 Painel
               </button>
               <button
-                aria-current={projectView === "dashboard" ? undefined : "page"}
+                aria-current={
+                  projectView === "dashboard" || projectView === "users"
+                    ? undefined
+                    : "page"
+                }
                 className={
-                  projectView === "dashboard" ? "secondary-button" : ""
+                  projectView === "dashboard" || projectView === "users"
+                    ? "secondary-button"
+                    : ""
                 }
                 disabled={pending}
                 onClick={showProjects}
@@ -625,9 +650,27 @@ export default function App() {
               >
                 Projetos
               </button>
+              {user.role === "ADMIN" && (
+                <button
+                  aria-current={projectView === "users" ? "page" : undefined}
+                  className={
+                    projectView === "users" ? "" : "secondary-button"
+                  }
+                  disabled={pending}
+                  onClick={showUsers}
+                  type="button"
+                >
+                  Utilizadores
+                </button>
+              )}
             </nav>
           )}
-          {projectView === "dashboard" ? (
+          {projectView === "users" ? (
+            <UsersPanel
+              currentUser={user}
+              onCurrentUserUpdated={handleCurrentUserUpdated}
+            />
+          ) : projectView === "dashboard" ? (
             <Dashboard
               onOpenProject={openProject}
               onViewProjects={showProjects}

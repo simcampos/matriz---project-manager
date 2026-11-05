@@ -139,5 +139,40 @@ Os passos foram executados no frontend local e, quando indicado, diretamente na 
 ### Exemplo 3 — Operações previstas no contrato mas ausentes
 
 - **Objetivo do pedido à IA:** comparar o OpenAPI com as rotas reais e identificar operações que não estavam implementadas.
-- **Sugestão da IA e decisão do programador:** foi sinalizada a possibilidade de completar os endpoints de gestão de papéis e associação de membros. O programador rejeitou alargar a implementação nesta entrega e decidiu manter RF-03 e RF-05 como pendentes, ajustando o contrato à API existente.
-- **Verificação:** comparar caminhos e métodos do OpenAPI com `backend/config/urls.py`, validar o YAML e resolver as referências locais. Resultado observado nesta atualização: 13 caminhos correspondem às rotas registadas, 104 referências locais foram resolvidas e `git diff --check` passou.
+- **Sugestão da IA e decisão do programador:** foi sugerido completar a gestão de papéis e membros. O programador aceitou implementar RF-03 e RF-05 e definiu que o Admin tem leitura global sem escrita/comentários, que podem ser associados utilizadores ativos de qualquer papel, que remover um membro remove as suas atribuições e que deve permanecer pelo menos um Admin ativo.
+- **Verificação:** executar os testes de backend e frontend, compilar o frontend e validar o OpenAPI. Os resultados desta implementação estão registados abaixo.
+
+## Verificação adicional — Admin e membros de projeto
+
+Data da verificação: 2026-11-05
+
+### Testes automatizados
+
+- **Comando:** `cd backend && ../.venv/bin/python manage.py check && ../.venv/bin/python manage.py test apps.accounts apps.projects apps.tasks apps.comments`
+- **Resultado esperado:** verificações Django sem problemas e suite backend aprovada, incluindo permissões de Admin, proteção do último Admin ativo, gestão de membros, limpeza de atribuições e bloqueio de comentário por Admin.
+- **Resultado observado:** `manage.py check` sem problemas; 48 testes passaram.
+- **Evidência:** `Ran 48 tests ... OK`. Casos relevantes incluem `test_last_active_admin_cannot_be_demoted`, `test_admin_can_read_projects_without_managing_them`, `test_project_manager_can_add_and_remove_members_and_assignments`, `test_only_project_manager_can_manage_members` e `test_admin_can_read_comments_but_cannot_add_them`.
+- **Estado:** PASS
+
+- **Comando:** `cd frontend && npm test && npm run build`
+- **Resultado esperado:** testes de frontend aprovados e bundle de produção compilado.
+- **Resultado observado:** 3 testes passaram; build Vite concluído com 22 módulos transformados.
+- **Evidência:** `3 pass, 0 fail`; `✓ built`.
+- **Estado:** PASS
+
+- **Comando:** `ruby -e 'require "yaml"; root = YAML.load_file("openapi.yaml"); refs = []; walk = ->(value) { case value; when Hash; value.each { |key, child| refs << child if key == "$ref"; walk.call(child) }; when Array; value.each { |child| walk.call(child) }; end }; walk.call(root); refs.each { |ref| next unless ref.start_with?("#/"); cursor = root; ref.split("/").drop(1).each { |part| cursor = cursor.fetch(part.gsub("~1", "/").gsub("~0", "~")) } }; puts "OpenAPI YAML valid; #{root.fetch("paths").length} paths; #{refs.length} local references resolved"'`
+- **Resultado esperado:** contrato OpenAPI sintaticamente válido.
+- **Resultado observado:** YAML válido; 17 caminhos e 134 referências locais resolvidos.
+- **Evidência:** parser Ruby `Psych` terminou com código 0 e imprimiu `OpenAPI YAML valid; 17 paths; 134 local references resolved`.
+- **Estado:** PASS
+
+- **Comando:** `git diff --check`
+- **Resultado esperado:** nenhuma falha de whitespace no conjunto de alterações.
+- **Resultado observado:** terminou com código 0 e sem output.
+- **Evidência:** saída vazia; código de saída 0.
+- **Estado:** PASS
+
+### Verificações manuais
+
+- **Admin em modo de consulta:** não executado manualmente no browser nesta sessão. Os testes automatizados verificam leitura global e que o Admin não consegue alterar os dados nem adicionar comentários; a verificação interativa da interface fica pendente porque a ferramenta de browser não está disponível nesta sessão.
+- **Gestão de membros:** não executado manualmente no browser nesta sessão. Os testes automatizados verificam associação/remoção, limpeza das atribuições, acesso após remoção e restrição de gestão ao Project Manager responsável.

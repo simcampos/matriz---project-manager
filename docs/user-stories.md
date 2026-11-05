@@ -2,9 +2,9 @@
 
 ## Contexto
 
-Este backlog detalha o âmbito da ficha de implementação: autenticação, gestão e pesquisa de projetos, tarefas com estado e prioridade, múltiplos responsáveis, comentários e painel inicial. As regras de acesso e os detalhes que a ficha não fixa continuam propostas para validação. Para a estrutura inicial foram confirmados sessões Django, estados `TODO`/`IN_PROGRESS`/`DONE`, prioridades `LOW`/`MEDIUM`/`HIGH` com defaults `TODO`/`MEDIUM` e eliminação em cascata de dados dependentes.
+Este backlog detalha o âmbito da ficha de implementação: autenticação, gestão e pesquisa de projetos, tarefas com estado e prioridade, múltiplos responsáveis, comentários, gestão de papéis e membros e painel inicial. As regras de acesso aprovadas para Admin e gestão de membros estão descritas nas histórias relevantes. Para a estrutura inicial foram confirmados sessões Django, estados `TODO`/`IN_PROGRESS`/`DONE`, prioridades `LOW`/`MEDIUM`/`HIGH` com defaults `TODO`/`MEDIUM` e eliminação em cascata de dados dependentes.
 
-**Prioridades:** Alta significa necessária para o fluxo central proposto; Média significa útil para utilização diária, mas adiável. Admin, Project Manager e Developer são os rótulos dos papéis. As regras de autorização e os campos de produto ainda sujeitos a validação são indicados como propostas.
+**Prioridades:** Alta significa necessária para o fluxo central; Média significa útil para utilização diária, mas adiável. Admin, Project Manager e Developer são os rótulos dos papéis. Decisões ainda sujeitas a validação são identificadas como tal.
 
 ## US-01 — Autenticar-se
 
@@ -29,8 +29,9 @@ Este backlog detalha o âmbito da ficha de implementação: autenticação, gest
 
 1. **Given** um Developer associado a projetos, **When** consulta a lista de projetos, **Then** são apresentados os projetos a que está associado e nenhum projeto não associado.
 2. **Given** um utilizador autenticado sem associação a um projeto, **When** consulta a lista ou tenta aceder diretamente ao projeto, **Then** os dados do projeto e das respetivas tarefas não são apresentados.
+3. **Given** um Admin autenticado, **When** consulta projetos, tarefas, responsáveis ou comentários, **Then** pode ler os dados de todos os projetos, mas não pode alterar projetos/tarefas, gerir responsáveis ou adicionar comentários.
 
-O âmbito de consulta de projetos pelo Admin e o acesso a projetos arquivados ainda não estão definidos; não são critérios aprovados desta história.
+O acesso a projetos arquivados ainda não está definido; não é critério aprovado desta história.
 
 ## US-03 — Criar e gerir projetos
 
@@ -123,6 +124,7 @@ O resumo é visível a qualquer utilizador com acesso ao projeto (decisão adota
 3. **Given** um Developer autenticado, **When** tenta consultar ou alterar papéis de utilizadores, **Then** a operação é recusada e os papéis existentes permanecem inalterados.
 4. **Given** um papel que não pertence aos três papéis permitidos, **When** o Admin tenta atribuí-lo, **Then** a alteração é recusada e o papel anterior permanece inalterado.
 5. **Given** um utilizador que gere pelo menos um projeto, **When** o Admin tenta atribuir-lhe um papel diferente de Project Manager, **Then** a alteração é recusada e o papel anterior permanece inalterado.
+6. **Given** o último Admin ativo, **When** outro Admin tenta alterar o seu papel para não-Admin, **Then** a operação é recusada e permanece pelo menos um Admin ativo.
 
 ## US-09 — Associar membros a projetos
 
@@ -132,13 +134,15 @@ O resumo é visível a qualquer utilizador com acesso ao projeto (decisão adota
 
 **Critérios de aceitação**
 
-1. **Given** um Project Manager com acesso de gestão a um projeto e um utilizador existente, **When** associa esse utilizador ao projeto, **Then** o utilizador passa a constar uma única vez na lista de membros do projeto.
+1. **Given** um Project Manager com acesso de gestão a um projeto e um utilizador ativo de qualquer papel, **When** associa esse utilizador ao projeto, **Then** o utilizador passa a constar uma única vez na lista de membros do projeto.
 2. **Given** um utilizador associado a um projeto, **When** consulta os projetos disponíveis, **Then** o projeto associado é apresentado.
 3. **Given** um utilizador sem associação ao projeto, **When** consulta os projetos disponíveis ou tenta aceder diretamente ao projeto, **Then** o projeto não é apresentado e os dados do projeto e das tarefas não ficam acessíveis.
 4. **Given** um Developer autenticado, **When** tenta alterar a associação de membros a um projeto, **Then** a operação é recusada e a lista de membros permanece inalterada.
 5. **Given** um utilizador que já é membro do projeto ou que é o seu gestor, **When** o Project Manager tenta associá-lo novamente, **Then** a operação é recusada por conflito e a lista de membros permanece inalterada.
+6. **Given** um membro associado ao projeto, **When** o Project Manager o remove, **Then** deixa de ter acesso ao projeto e são removidas as suas atribuições às tarefas desse projeto.
+7. **Given** um utilizador que não é o Project Manager responsável, **When** tenta adicionar ou remover membros, **Then** a operação é recusada e a composição do projeto não se altera.
 
-O gestor do projeto conta implicitamente como membro: aparece na lista de membros e pode ser responsável por tarefas (decisão adotada na Ficha PL 02, a validar com o cliente).
+O gestor do projeto conta implicitamente como membro: aparece na lista e não pode ser removido. Remover outro membro elimina as respetivas atribuições às tarefas do projeto.
 
 ## US-10 — Consultar e filtrar tarefas
 
@@ -222,7 +226,7 @@ A regra de correspondência (parcial/exata, maiúsculas e acentos) e o comprimen
 
 ## Questões por confirmar
 
-- Confirmar permissões por papel, alcance do Admin e possibilidade de acumular papéis.
+- Confirmar possibilidade de acumular papéis e as transições de estado das tarefas.
 - Definir como criar, convidar, desativar e remover utilizadores. US-08 cobre apenas utilizadores existentes; o mecanismo de disponibilização das primeiras contas é um bloqueio em aberto.
 - Confirmar regras propostas: título obrigatório e descrição opcional para projetos e tarefas.
 - Confirmar se tarefas podem ficar sem responsáveis.
@@ -230,8 +234,6 @@ A regra de correspondência (parcial/exata, maiúsculas e acentos) e o comprimen
 - Confirmar se “em aberto” significa estado diferente de `DONE`.
 - Definir pesquisa por nome e validação de comentários.
 - Definir comportamento de projeto arquivado; o arquivamento foi retirado do MVP até confirmação.
-- Definir como remover membros e o que fazer às tarefas que lhes estão atribuídas.
-- Definir como evitar que a alteração de papéis deixe a equipa sem um Admin.
 - Definir resultado verificável para falhas de gravação e alterações simultâneas.
 - Definir limites de tamanho dos campos para que a validação de conteúdo fique totalmente objetiva.
 - Validar com o cliente as decisões adotadas na Ficha PL 02: gestor único por projeto que conta implicitamente como membro; recusa de alterar o papel de quem gere projetos; resumo de progresso visível a qualquer utilizador com acesso ao projeto; sessão invalidada no servidor ao terminar sessão; vista "As minhas tarefas" (US-11).

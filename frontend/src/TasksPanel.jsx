@@ -694,20 +694,26 @@ export default function TasksPanel({ project, user, canManage }) {
                 ))}
               </ol>
             )}
-            <form className="comment-form" onSubmit={addComment}>
-              <label htmlFor="new-comment">Novo comentário</label>
-              <textarea
-                id="new-comment"
-                maxLength={2000}
-                onChange={(event) => setCommentContent(event.target.value)}
-                required
-                rows={3}
-                value={commentContent}
-              />
-              <button disabled={pending} type="submit">
-                {pending ? "A guardar..." : "Comentar"}
-              </button>
-            </form>
+            {user.role === "ADMIN" ? (
+              <p className="read-only-note">
+                Acesso de consulta: não podes adicionar comentários.
+              </p>
+            ) : (
+              <form className="comment-form" onSubmit={addComment}>
+                <label htmlFor="new-comment">Novo comentário</label>
+                <textarea
+                  id="new-comment"
+                  maxLength={2000}
+                  onChange={(event) => setCommentContent(event.target.value)}
+                  required
+                  rows={3}
+                  value={commentContent}
+                />
+                <button disabled={pending} type="submit">
+                  {pending ? "A guardar..." : "Comentar"}
+                </button>
+              </form>
+            )}
           </section>
           {canManage && (
             <div className="action-row">

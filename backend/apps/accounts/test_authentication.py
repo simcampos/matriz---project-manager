@@ -91,6 +91,120 @@ class AuthenticationFlowTests(TestCase):
         self.assertEqual(self.client.get("/api/users/me/").status_code, 401)
 
 
+class UserAdminApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            "admin@example.test",
+            "test-password",
+            role=User.Role.ADMIN,
+        )
+        self.manager = User.objects.create_user(
+            "manager@example.test",
+            "test-password",
+            role=User.Role.PROJECT_MANAGER,
+        )
+        self.developer = User.objects.create_user(
+            "developer@example.test",
+            "test-password",
+            role=User.Role.DEVELOPER,
+        )
+
+    def test_only_admin_can_list_users_and_update_roles(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get("/api/users/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {user["email"] for user in response.json()},
+            {self.admin.email, self.manager.email, self.developer.email},
+        )
+        self.assertTrue(all("isActive" in user for user in response.json()))
+
+        self.client.force_authenticate(self.developer)
+        self.assertEqual(self.client.get("/api/users/").status_code, 403)
+        self.assertEqual(
+            self.client.patch(
+                f"/api/users/{self.developer.pk}/",
+                {"role": User.Role.ADMIN},
+                format="json",
+            ).status_code,
+            403,
+        )
+
+    def test_admin_can_change_role_and_invalid_fields_are_rejected(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/users/{self.developer.pk}/",
+            {"role": User.Role.PROJECT_MANAGER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["role"], User.Role.PROJECT_MANAGER)
+
+        invalid_role = self.client.patch(
+            f"/api/users/{self.developer.pk}/",
+            {"role": "OWNER"},
+            format="json",
+        )
+        self.assertEqual(invalid_role.status_code, 400)
+
+        unknown_field = self.client.patch(
+            f"/api/users/{self.developer.pk}/",
+            {"role": User.Role.DEVELOPER, "email": "changed@example.test"},
+            format="json",
+        )
+        self.assertEqual(unknown_field.status_code, 400)
+
+    def test_project_manager_with_projects_cannot_be_demoted(self):
+        Project.objects.create(manager=self.manager, title="Managed project")
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/users/{self.manager.pk}/",
+            {"role": User.Role.DEVELOPER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.manager.refresh_from_db()
+        self.assertEqual(self.manager.role, User.Role.PROJECT_MANAGER)
+
+    def test_last_active_admin_cannot_be_demoted(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/users/{self.admin.pk}/",
+            {"role": User.Role.DEVELOPER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.role, User.Role.ADMIN)
+
+    def test_admin_can_be_demoted_when_another_active_admin_exists(self):
+        second_admin = User.objects.create_user(
+            "second-admin@example.test",
+            "test-password",
+            role=User.Role.ADMIN,
+        )
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/users/{self.admin.pk}/",
+            {"role": User.Role.DEVELOPER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["role"], User.Role.DEVELOPER)
+        second_admin.refresh_from_db()
+        self.assertEqual(second_admin.role, User.Role.ADMIN)
+
+
 class ProjectAuthorizationTests(TestCase):
     def setUp(self):
         self.manager = User.objects.create_user(
@@ -130,7 +244,7 @@ class ProjectAuthorizationTests(TestCase):
         request.user = user
         return permission_class().has_object_permission(request, None, obj)
 
-    def test_project_visibility_is_limited_to_manager_and_members(self):
+    def test_admin_can_read_projects_without_managing_them(self):
         self.assertTrue(
             self.permission_allows(CanAccessProject, self.manager, self.project)
         )
@@ -144,8 +258,14 @@ class ProjectAuthorizationTests(TestCase):
                 self.project,
             )
         )
-        self.assertFalse(
+        self.assertTrue(
             self.permission_allows(CanAccessProject, self.admin, self.project)
+        )
+        self.assertFalse(
+            self.permission_allows(CanManageProject, self.admin, self.project)
+        )
+        self.assertFalse(
+            self.permission_allows(CanUpdateTaskStatus, self.admin, self.task)
         )
 
     def test_only_project_manager_can_manage_and_assigned_developer_can_update(self):

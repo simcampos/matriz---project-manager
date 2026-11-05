@@ -19,13 +19,14 @@ Os principais objetivos são:
 - Papéis de utilizador: Admin, Project Manager e Developer.
 - CRUD e pesquisa de projetos por nome.
 - CRUD de tarefas com estado e prioridade.
-- Consulta de membros de projeto e associação/remoção de vários responsáveis por tarefa.
+- Gestão de membros de projeto pelo respetivo Project Manager e associação/remoção de vários responsáveis por tarefa.
+- Administração: listar utilizadores e alterar papéis; o Admin pode consultar todos os projetos e tarefas, sem os alterar nem comentar.
 - Comentários com autor e data.
 - Estados de tarefa fixos.
 - Filtros de tarefas por estado e prioridade.
 - Painel inicial com projetos acessíveis, contagens por estado e tarefas atribuídas ao utilizador, calculados no frontend.
 
-RF-03 (gestão de papéis pela aplicação) e RF-05 (adicionar/remover membros de projeto pela aplicação) continuam pendentes. Não existem endpoints REST próprios para tarefas pessoais, progresso ou painel; o frontend compõe o painel a partir das rotas implementadas. A descrição detalhada está em [implementation-plan.md](./docs/implementation-plan.md). As regras de acesso por papel e alguns detalhes do produto continuam sujeitas às decisões registadas em [constraints.md](./docs/constraints.md).
+RF-03 (gestão de papéis) e RF-05 (associação/remoção de membros) estão implementados. Não existem endpoints REST próprios para tarefas pessoais, progresso ou painel; o frontend compõe o painel a partir das rotas implementadas. A descrição detalhada está em [implementation-plan.md](./docs/implementation-plan.md). As regras de acesso por papel e as decisões ainda pendentes estão registadas em [constraints.md](./docs/constraints.md).
 
 ## Documentação
 

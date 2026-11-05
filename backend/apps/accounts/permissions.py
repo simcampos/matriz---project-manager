@@ -30,6 +30,8 @@ def get_related_project(obj):
 def can_access_project(user, project):
     if not user.is_authenticated or project is None:
         return False
+    if user.role == User.Role.ADMIN:
+        return True
     if (
         user.role == User.Role.PROJECT_MANAGER
         and project.manager_id == user.pk

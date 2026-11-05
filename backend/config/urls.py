@@ -21,12 +21,16 @@ from apps.accounts.views import (
     CurrentSessionDeleteView,
     CurrentUserView,
     SessionCreateView,
+    UserListView,
+    UserRoleUpdateView,
     csrf_cookie,
 )
 from apps.comments.views import ProjectTaskCommentListCreateView
 from apps.projects.views import (
     ProjectDetailView,
+    ProjectEligibleMemberListView,
     ProjectListCreateView,
+    ProjectMemberDetailView,
     ProjectMemberListView,
 )
 from apps.tasks.views import (
@@ -51,6 +55,16 @@ urlpatterns = [
         "api/projects/<int:project_id>/members/",
         ProjectMemberListView.as_view(),
         name="project-member-list",
+    ),
+    path(
+        "api/projects/<int:project_id>/eligible-members/",
+        ProjectEligibleMemberListView.as_view(),
+        name="project-eligible-member-list",
+    ),
+    path(
+        "api/projects/<int:project_id>/members/<int:user_id>/",
+        ProjectMemberDetailView.as_view(),
+        name="project-member-detail",
     ),
     path(
         "api/projects/<int:project_id>/tasks/",
@@ -84,4 +98,10 @@ urlpatterns = [
         name="delete-current-session",
     ),
     path("api/users/me/", CurrentUserView.as_view(), name="current-user"),
+    path("api/users/", UserListView.as_view(), name="user-list"),
+    path(
+        "api/users/<int:user_id>/",
+        UserRoleUpdateView.as_view(),
+        name="user-role-update",
+    ),
 ]
