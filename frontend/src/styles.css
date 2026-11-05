@@ -509,6 +509,10 @@ button:disabled {
   border-top: 1px solid #e2e8f0;
 }
 
+.task-detail > .action-row {
+  margin-top: 20px;
+}
+
 .task-detail-section h4 {
   margin: 0 0 14px;
   font-size: 1.05rem;
