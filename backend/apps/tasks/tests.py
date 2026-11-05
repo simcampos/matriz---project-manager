@@ -1,10 +1,55 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIClient
 
 from apps.comments.models import Comment
 from apps.accounts.models import User
 from apps.projects.models import Project, ProjectMember
 from apps.tasks.models import Task, TaskAssignee
+from apps.tasks.serializers import TaskCreateSerializer
+
+
+class TaskTitleValidationTests(SimpleTestCase):
+    def test_valid_title_is_accepted(self):
+        serializer = TaskCreateSerializer(data={"title": "Implementar login"})
+
+        self.assertTrue(serializer.is_valid())
+
+    def test_empty_title_is_rejected_with_blank_message(self):
+        serializer = TaskCreateSerializer(data={"title": ""})
+        serializer.is_valid()
+
+        self.assertEqual(
+            str(serializer.errors["title"][0]),
+            "Este campo não pode ser em branco.",
+        )
+
+    def test_whitespace_only_title_is_rejected(self):
+        serializer = TaskCreateSerializer(data={"title": "   "})
+        serializer.is_valid()
+
+        self.assertEqual(serializer.errors["title"][0].code, "blank")
+
+    def test_two_character_title_is_rejected(self):
+        serializer = TaskCreateSerializer(data={"title": "ab"})
+        serializer.is_valid()
+
+        self.assertEqual(serializer.errors["title"][0].code, "min_length")
+
+    def test_three_character_title_is_accepted(self):
+        serializer = TaskCreateSerializer(data={"title": "abc"})
+
+        self.assertTrue(serializer.is_valid())
+
+    def test_150_character_title_is_accepted(self):
+        serializer = TaskCreateSerializer(data={"title": "x" * 150})
+
+        self.assertTrue(serializer.is_valid())
+
+    def test_151_character_title_is_rejected(self):
+        serializer = TaskCreateSerializer(data={"title": "x" * 151})
+        serializer.is_valid()
+
+        self.assertEqual(serializer.errors["title"][0].code, "max_length")
 
 
 class TaskDefaultsTests(TestCase):
@@ -284,6 +329,138 @@ class TaskApiTests(TestCase):
         self.assertEqual(fetched.status_code, 200)
         self.assertEqual(fetched.json()["title"], "Persisted task")
         self.assertEqual([task["taskId"] for task in listed.json()], [task_id])
+
+
+class TaskPersistenceIntegrationTests(TestCase):
+    password = "integration-test-password"
+
+    def setUp(self):
+        self.manager = User.objects.create_user(
+            "integration.manager@example.test",
+            self.password,
+            role=User.Role.PROJECT_MANAGER,
+        )
+        self.outsider = User.objects.create_user(
+            "integration.outsider@example.test",
+            self.password,
+            role=User.Role.DEVELOPER,
+        )
+        self.manager_client = APIClient(enforce_csrf_checks=True)
+        self._login(self.manager_client, self.manager)
+
+        project_response = self._post_json(
+            self.manager_client,
+            "/api/projects/",
+            {"title": "Integration project"},
+        )
+        self.assertEqual(project_response.status_code, 201)
+        self.project_id = project_response.json()["projectId"]
+        self.tasks_url = f"/api/projects/{self.project_id}/tasks/"
+
+    def _login(self, client, user):
+        client.get("/api/csrf/")
+        response = client.post(
+            "/api/sessions/",
+            {"email": user.email, "password": self.password},
+            format="json",
+            HTTP_X_CSRFTOKEN=client.cookies["csrftoken"].value,
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def _post_json(self, client, url, data):
+        client.get("/api/csrf/")
+        return client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_CSRFTOKEN=client.cookies["csrftoken"].value,
+        )
+
+    def assert_invalid_title(self, title):
+        response = self._post_json(
+            self.manager_client,
+            self.tasks_url,
+            {"title": title},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()["title"])
+        self.assertFalse(Task.objects.filter(project_id=self.project_id).exists())
+
+    def test_api_creation_persistence_and_retrieval(self):
+        payload = {
+            "title": "Persisted integration task",
+            "description": "Created through the API",
+        }
+
+        response = self._post_json(
+            self.manager_client,
+            self.tasks_url,
+            payload,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        created = response.json()
+        self.assertIsInstance(created["taskId"], int)
+        self.assertGreater(created["taskId"], 0)
+        self.assertEqual(created["projectId"], self.project_id)
+        self.assertEqual(created["title"], payload["title"])
+        self.assertEqual(created["description"], payload["description"])
+        self.assertEqual(created["status"], Task.Status.TODO)
+        self.assertEqual(created["priority"], Task.Priority.MEDIUM)
+
+        task = Task.objects.get(pk=created["taskId"])
+        self.assertEqual(task.title, payload["title"])
+        self.assertEqual(task.description, payload["description"])
+        self.assertEqual(task.status, Task.Status.TODO)
+        self.assertEqual(task.priority, Task.Priority.MEDIUM)
+
+        retrieved = self.manager_client.get(
+            f"{self.tasks_url}{created['taskId']}/"
+        )
+        self.assertEqual(retrieved.status_code, 200)
+        self.assertEqual(retrieved.json(), created)
+
+    def test_empty_title_returns_validation_error(self):
+        self.assert_invalid_title("")
+
+    def test_whitespace_only_title_returns_validation_error(self):
+        self.assert_invalid_title("   ")
+
+    def test_title_below_minimum_returns_validation_error(self):
+        self.assert_invalid_title("ab")
+
+    def test_user_without_project_access_gets_not_found(self):
+        created = self._post_json(
+            self.manager_client,
+            self.tasks_url,
+            {"title": "Private integration task"},
+        ).json()
+        outsider_client = APIClient(enforce_csrf_checks=True)
+        self._login(outsider_client, self.outsider)
+
+        response = outsider_client.get(
+            f"{self.tasks_url}{created['taskId']}/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn(
+            "Private integration task",
+            response.content.decode(),
+        )
+
+    def test_nonexistent_task_id_returns_not_found(self):
+        greatest_task_id = (
+            Task.objects.order_by("-pk").values_list("pk", flat=True).first()
+            or 0
+        )
+        nonexistent_task_id = greatest_task_id + 1
+
+        response = self.manager_client.get(
+            f"{self.tasks_url}{nonexistent_task_id}/"
+        )
+
+        self.assertEqual(response.status_code, 404)
 
 
 class TaskAssigneeApiTests(TestCase):

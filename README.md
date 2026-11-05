@@ -136,3 +136,24 @@ npm run build
 O seed pode ser executado novamente sem duplicar os registos de demonstração. Os resultados das verificações funcionais e as limitações conhecidas estão em [verification.md](./docs/verification.md).
 
 O modelo lógico e as escolhas de persistência estão descritos em [database.md](./docs/database.md). Os estados são `TODO`, `IN_PROGRESS` e `DONE`; prioridades são `LOW`, `MEDIUM` e `HIGH`, com defaults `TODO` e `MEDIUM`. As sessões são geridas por Django; a tabela `django_session` é criada pelas migrations do framework.
+
+### Teste E2E com Playwright
+
+O fluxo E2E testa login de Project Manager, abertura do painel e criação de um projeto e de uma tarefa pela interface. Usa um serviço PostgreSQL separado (`matriz_e2e`) numa porta/volume próprios; não aponta para a base de desenvolvimento `matriz`. O teste cria um projeto com nome único e tenta eliminá-lo no teardown, incluindo as tarefas dependentes.
+
+Pré-requisitos: concluir a instalação local acima, ter `DEMO_PM_PASSWORD`, `POSTGRES_USER` e `POSTGRES_PASSWORD` definidos no `.env`, e instalar o browser Playwright:
+
+```sh
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e up -d --wait e2e-db
+POSTGRES_DB=matriz_e2e POSTGRES_PORT=5433 .venv/bin/python backend/manage.py migrate
+POSTGRES_DB=matriz_e2e POSTGRES_PORT=5433 .venv/bin/python backend/manage.py seed_demo
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
+O comando E2E lê o `.env` da raiz para obter as credenciais de demonstração. Playwright inicia o backend e o frontend em `http://127.0.0.1:8001` e `http://127.0.0.1:5174`, respetivamente; esses processos são geridos pelo runner. O teste usa a conta `pm@matriz.dev` criada pelo seed, mas não depende dos projetos nem das tarefas seed. Para uma conta diferente, define `E2E_PM_EMAIL` no ambiente antes de executar.
+
+Os resultados HTML ficam em `frontend/playwright-report/`; screenshots e traces só são guardados em falhas, em `frontend/test-results/`. A base `matriz_e2e` permanece no volume isolado entre execuções; as migrations e o seed devem ser executados apenas com `POSTGRES_DB=matriz_e2e` e `POSTGRES_PORT=5433`, como nos comandos acima.
+
+Se já existir um Chromium/Chrome instalado e não for possível instalar o browser gerido pelo Playwright, pode indicar o executável ao runner com `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/caminho/para/chrome` antes de `npm run test:e2e`.
