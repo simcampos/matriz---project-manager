@@ -17,5 +17,132 @@ services:
     profiles:
       - e2e
 
+  e2e-backend:
+    image: matriz-e2e-backend:e2e
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.e2e
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: e2e-backend,localhost,127.0.0.1
+      DJANGO_CORS_ALLOWED_ORIGINS: http://e2e-frontend:5174
+      DJANGO_CSRF_TRUSTED_ORIGINS: http://e2e-frontend:5174
+      POSTGRES_DB: matriz_e2e
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: e2e-db
+      POSTGRES_PORT: "5432"
+      PYTHONDONTWRITEBYTECODE: "1"
+    working_dir: /workspace
+    command:
+      ["python", "backend/manage.py", "runserver", "0.0.0.0:8001"]
+    volumes:
+      - ./backend:/workspace/backend
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/health/', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    profiles:
+      - e2e
+
+  e2e-setup:
+    image: matriz-e2e-backend:e2e
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.e2e
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+      POSTGRES_DB: matriz_e2e
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: e2e-db
+      POSTGRES_PORT: "5432"
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?Set DEMO_ADMIN_PASSWORD in .env}
+      DEMO_PM_PASSWORD: ${DEMO_PM_PASSWORD:?Set DEMO_PM_PASSWORD in .env}
+      DEMO_DEVELOPER_PASSWORD: ${DEMO_DEVELOPER_PASSWORD:?Set DEMO_DEVELOPER_PASSWORD in .env}
+      PYTHONDONTWRITEBYTECODE: "1"
+    working_dir: /workspace
+    entrypoint: ["python", "backend/manage.py"]
+    volumes:
+      - ./backend:/workspace/backend
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+    profiles:
+      - e2e
+
+  e2e-frontend:
+    image: node:22-bookworm-slim
+    environment:
+      VITE_API_BASE_URL: /api
+      VITE_API_PROXY_TARGET: http://e2e-backend:8001
+    working_dir: /workspace/frontend
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        if ! cmp -s package.json node_modules/.e2e-package.json ||
+           ! cmp -s package-lock.json node_modules/.e2e-package-lock.json; then
+          npm ci
+          cp package.json node_modules/.e2e-package.json
+          cp package-lock.json node_modules/.e2e-package-lock.json
+        fi
+        exec npm run dev -- --host 0.0.0.0 --port 5174
+    volumes:
+      - ./frontend:/workspace/frontend
+      - e2e_node_modules:/workspace/frontend/node_modules
+    depends_on:
+      e2e-backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5174/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    profiles:
+      - e2e
+
+  e2e-runner:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    environment:
+      E2E_DOCKER: "true"
+      E2E_BASE_URL: http://e2e-frontend:5174
+      E2E_API_BASE_URL: http://e2e-frontend:5174/api
+      DEMO_PM_PASSWORD: ${DEMO_PM_PASSWORD:?Set DEMO_PM_PASSWORD in .env}
+      E2E_PM_EMAIL: ${E2E_PM_EMAIL:-pm@matriz.dev}
+    working_dir: /workspace/frontend
+    command: ["node", "./node_modules/@playwright/test/cli.js", "test"]
+    volumes:
+      - ./frontend:/workspace/frontend
+      - e2e_node_modules:/workspace/frontend/node_modules
+    depends_on:
+      e2e-backend:
+        condition: service_healthy
+      e2e-frontend:
+        condition: service_healthy
+    profiles:
+      - e2e
+
 volumes:
   matriz_e2e_data:
+  e2e_node_modules:

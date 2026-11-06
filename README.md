@@ -139,21 +139,46 @@ O modelo lógico e as escolhas de persistência estão descritos em [database.md
 
 ### Teste E2E com Playwright
 
-O fluxo E2E testa login de Project Manager, abertura do painel e criação de um projeto e de uma tarefa pela interface. Usa um serviço PostgreSQL separado (`matriz_e2e`) numa porta/volume próprios; não aponta para a base de desenvolvimento `matriz`. O teste cria um projeto com nome único e tenta eliminá-lo no teardown, incluindo as tarefas dependentes.
+O fluxo E2E testa login de Project Manager, abertura do painel e criação de um projeto e de uma tarefa pela interface. O runner Playwright/Chromium, frontend, backend e PostgreSQL E2E correm em containers numa rede Compose isolada. O código do frontend e backend é bind-mounted do repositório no host, por isso as alterações feitas no VS Code ficam visíveis nos containers sem reconstruir imagens. `node_modules` fica num volume Docker separado das dependências instaladas no host.
 
-Pré-requisitos: concluir a instalação local acima, ter `DEMO_PM_PASSWORD`, `POSTGRES_USER` e `POSTGRES_PASSWORD` definidos no `.env`, e instalar o browser Playwright:
+O serviço `e2e-db` usa a base `matriz_e2e` e um volume próprios; não usa a base de desenvolvimento `matriz`. Migrations e seed são comandos explícitos e nunca são executados automaticamente ao arrancar os serviços. O `.env` é lido pelo Compose em runtime; não é copiado para as imagens. Define nele `DJANGO_SECRET_KEY`, `POSTGRES_USER`, `POSTGRES_PASSWORD` e as três passwords `DEMO_*`.
+
+```sh
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e up -d --build --wait e2e-db e2e-backend e2e-frontend
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e run --rm e2e-setup migrate
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e run --rm e2e-setup seed_demo
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e run --rm e2e-runner
+```
+
+O runner usa a imagem oficial Playwright `v1.56.1-noble`, alinhada com a versão de `@playwright/test` no lockfile, e não requer Chromium instalado no host. O frontend usa o Vite como proxy de `/api` para o backend, mantendo os pedidos e cookies da sessão na mesma origem. O teste usa `pm@matriz.dev`; para outra conta já existente na base E2E, define `E2E_PM_EMAIL` no `.env`.
+
+As dependências do frontend são instaladas no volume `e2e_node_modules` na primeira execução e reinstaladas quando `package.json` ou `package-lock.json` mudam. Assim, recriar o container frontend para correr o runner não exige acesso repetido ao npm.
+
+Se o Docker usar uma rede com inspeção TLS e o npm não confiar na CA instalada no host, exporta a CA confiável para um ficheiro PEM local e adiciona `-f compose.e2e.ca.yaml` a cada comando Compose E2E. No macOS, por exemplo:
+
+```sh
+security find-certificate -a -p > /tmp/matriz-e2e-ca.pem
+export E2E_CA_CERT_PATH=/tmp/matriz-e2e-ca.pem
+```
+
+O ficheiro PEM é montado apenas nos containers frontend e runner e não deve ser versionado.
+
+Os resultados HTML ficam em `frontend/playwright-report/`; screenshots e traces só são guardados em falhas, em `frontend/test-results/`. Estes ficheiros aparecem no repositório do host através do bind mount. A base E2E permanece no volume entre execuções; o seed é idempotente e não altera passwords de contas já existentes.
+
+Para parar manualmente apenas os serviços E2E quando já não forem necessários:
+
+```sh
+docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e stop e2e-backend e2e-frontend e2e-db
+```
+
+#### Alternativa: runner local
+
+Também é possível executar o runner no host. Esta opção requer Chromium do Playwright instalado localmente ou um executável Chromium/Chrome indicado em `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. O backend e frontend são iniciados pelo `webServer` do Playwright:
 
 ```sh
 docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e up -d --wait e2e-db
 POSTGRES_DB=matriz_e2e POSTGRES_PORT=5433 .venv/bin/python backend/manage.py migrate
 POSTGRES_DB=matriz_e2e POSTGRES_PORT=5433 .venv/bin/python backend/manage.py seed_demo
 cd frontend
-npx playwright install chromium
 npm run test:e2e
 ```
-
-O comando E2E lê o `.env` da raiz para obter as credenciais de demonstração. Playwright inicia o backend e o frontend em `http://127.0.0.1:8001` e `http://127.0.0.1:5174`, respetivamente; esses processos são geridos pelo runner. O teste usa a conta `pm@matriz.dev` criada pelo seed, mas não depende dos projetos nem das tarefas seed. Para uma conta diferente, define `E2E_PM_EMAIL` no ambiente antes de executar.
-
-Os resultados HTML ficam em `frontend/playwright-report/`; screenshots e traces só são guardados em falhas, em `frontend/test-results/`. A base `matriz_e2e` permanece no volume isolado entre execuções; as migrations e o seed devem ser executados apenas com `POSTGRES_DB=matriz_e2e` e `POSTGRES_PORT=5433`, como nos comandos acima.
-
-Se já existir um Chromium/Chrome instalado e não for possível instalar o browser gerido pelo Playwright, pode indicar o executável ao runner com `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/caminho/para/chrome` antes de `npm run test:e2e`.

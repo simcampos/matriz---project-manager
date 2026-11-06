@@ -6,6 +6,7 @@ const frontendOrigin = new URL(baseURL).origin;
 const e2ePassword = process.env.DEMO_PM_PASSWORD;
 const chromiumExecutablePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const dockerWebServers = process.env.E2E_DOCKER === "true";
 
 if (!e2ePassword) {
   throw new Error(
@@ -37,7 +38,9 @@ export default defineConfig({
       },
     },
   ],
-  webServer: [
+  webServer: dockerWebServers
+    ? []
+    : [
     {
       command: ".venv/bin/python backend/manage.py runserver 127.0.0.1:8001 --noreload",
       cwd: "..",

@@ -1,0 +1,12 @@
+services:
+  e2e-frontend:
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/e2e-ca.pem
+    volumes:
+      - ${E2E_CA_CERT_PATH:?Set E2E_CA_CERT_PATH to a trusted CA PEM file}:/run/e2e-ca.pem:ro
+
+  e2e-runner:
+    environment:
+      NODE_EXTRA_CA_CERTS: /run/e2e-ca.pem
+    volumes:
+      - ${E2E_CA_CERT_PATH:?Set E2E_CA_CERT_PATH to a trusted CA PEM file}:/run/e2e-ca.pem:ro
