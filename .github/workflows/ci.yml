@@ -93,9 +93,7 @@ jobs:
     needs: build
     if: >-
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      vars.RENDER_API_SERVICE_ID != '' &&
-      vars.RENDER_FRONTEND_SERVICE_ID != ''
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -103,11 +101,16 @@ jobs:
       RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
       RENDER_FRONTEND_SERVICE_ID: ${{ vars.RENDER_FRONTEND_SERVICE_ID }}
     steps:
-      - name: Deploy API commit to Render
+      - name: Validate Render deployment configuration
         run: |
           set -euo pipefail
           : "${RENDER_API_KEY:?Add RENDER_API_KEY to the production environment secrets}"
           : "${RENDER_API_SERVICE_ID:?Add RENDER_API_SERVICE_ID to the production environment variables}"
+          : "${RENDER_FRONTEND_SERVICE_ID:?Add RENDER_FRONTEND_SERVICE_ID to the production environment variables}"
+
+      - name: Deploy API commit to Render
+        run: |
+          set -euo pipefail
           curl --fail-with-body --silent --show-error \
             --request POST \
             --url "https://api.render.com/v1/services/${RENDER_API_SERVICE_ID}/deploys" \
@@ -119,8 +122,6 @@ jobs:
       - name: Deploy frontend commit to Render
         run: |
           set -euo pipefail
-          : "${RENDER_API_KEY:?Add RENDER_API_KEY to the production environment secrets}"
-          : "${RENDER_FRONTEND_SERVICE_ID:?Add RENDER_FRONTEND_SERVICE_ID to the production environment variables}"
           curl --fail-with-body --silent --show-error \
             --request POST \
             --url "https://api.render.com/v1/services/${RENDER_FRONTEND_SERVICE_ID}/deploys" \
