@@ -55,15 +55,15 @@ O painel agrega dados no frontend a partir dos endpoints disponíveis. Não exis
 ## Docker e Compose
 
 - [`compose.yaml`](../compose.yaml) executa `db`, `backend` e `frontend`; health checks ordenam o arranque. Portas locais: PostgreSQL 5432, API 8001, frontend 5174. A base de dados persiste num volume Docker.
-- [`backend/Dockerfile`](../backend/Dockerfile) instala dependências e executa Django `runserver`; é uma imagem de validação, não uma configuração de produção.
+- [`backend/Dockerfile`](../backend/Dockerfile) tem targets separados: `development` usa Django `runserver` e é selecionado pelo Compose local; `production` usa Gunicorn. Ambos executam como utilizador não-root.
 - [`frontend/Dockerfile`](../frontend/Dockerfile) compila com Node 22.23.4 e serve os assets com Nginx 1.29.3. `VITE_API_BASE_URL` é definido em build; o Dockerfile usa `http://localhost:8000/api` por omissão e o Compose de desenvolvimento substitui-o por `http://localhost:8001/api`.
 - [`compose.e2e.yaml`](../compose.e2e.yaml) define uma base PostgreSQL separada e serviços isolados para Playwright `v1.56.1`; migrations e seed E2E são passos explícitos.
 - O arranque não executa migrations ou seed. O `.env` é local e não deve ser versionado.
 
 ## CI e publicação
 
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar. Permissão: `contents: read`; credenciais de teste são placeholders.
-- [`.github/workflows/release.yml`](../.github/workflows/release.yml): em push de tags `v*.*.*`, usa `GITHUB_TOKEN` com `packages: write`, gera tags SemVer e publica `ghcr.io/simcampos/matriz-api` e `ghcr.io/simcampos/matriz-frontend`.
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar; o backend usa o target `production`. Permissão: `contents: read`; credenciais de teste são placeholders.
+- [`.github/workflows/release.yml`](../.github/workflows/release.yml): em push de tags `v*.*.*`, usa `GITHUB_TOKEN` com `packages: write`, gera tags SemVer e publica `ghcr.io/simcampos/matriz-api` a partir do target `production`, além de `ghcr.io/simcampos/matriz-frontend`.
 - Este pipeline publica imagens; não executa deployment. Hosting, URL pública da API e configuração de produção permanecem por definir.
 
 ## API e limites conhecidos

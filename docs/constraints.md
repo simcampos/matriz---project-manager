@@ -92,7 +92,7 @@ Antes da produção, identificar os dados pessoais tratados, a finalidade de cad
 
 - Estratégia de recuperação de acesso, duração das sessões Django e proteção contra tentativas abusivas.
 - Valores seguros para produção, rotação de `SECRET_KEY`, CORS/CSRF e configuração operacional.
-- Para desenvolvimento local, a aplicação é executada por Docker Compose. O Render.com foi indicado como destino de deployment para uma fase posterior; a configuração de produção permanece por definir. O workflow [release.yml](../.github/workflows/release.yml) publica as imagens da API e do frontend no GHCR a partir de tags `v*.*.*`, usando `GITHUB_TOKEN`.
+- Para desenvolvimento local, a aplicação é executada por Docker Compose. As imagens incluem um target backend de produção servido por Gunicorn; o workflow [release.yml](../.github/workflows/release.yml) publica-o no GHCR a partir de tags `v*.*.*`, usando `GITHUB_TOKEN`. O Render.com foi indicado como destino de deployment para uma fase posterior; hosting, TLS e configuração operacional de produção permanecem por definir.
 - Estratégia de testes, observabilidade, backups e recuperação.
 - Browsers e versões que serão suportados.
 

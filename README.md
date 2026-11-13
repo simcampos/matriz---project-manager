@@ -55,6 +55,8 @@ docker compose exec backend python manage.py seed_demo
 
 A aplicação fica em <http://localhost:5174>, a API em <http://localhost:8001/api> e o health check em <http://localhost:8001/api/health/>. PostgreSQL fica em `localhost:5432`. Migrations e seed não correm automaticamente no arranque; o seed é idempotente.
 
+O Compose local constrói o target `development` do backend, que usa o servidor de desenvolvimento Django.
+
 ### Execução sem Docker (desenvolvimento)
 
 Instala PostgreSQL 17 e cria uma role e uma base de dados que correspondam às variáveis `POSTGRES_USER` e `POSTGRES_DB` do `.env`. Exemplo interativo em `psql` como administrador PostgreSQL:
@@ -125,7 +127,9 @@ docker compose -f compose.yaml -f compose.e2e.yaml --profile e2e run --rm e2e-ru
 
 ### CI e publicação de imagens
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) corre os testes backend e frontend em pushes para `main`/`develop` e pull requests para `main`; o job `build` depende do sucesso de `test`. [`.github/workflows/release.yml`](./.github/workflows/release.yml) constrói e publica as imagens da API e do frontend no GHCR em tags `v*.*.*`, usando `GITHUB_TOKEN`. Isto publica imagens no registry; não configura deployment da aplicação.
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) corre os testes backend e frontend em pushes para `main`/`develop` e pull requests para `main`; o job `build` depende do sucesso de `test` e verifica a imagem da API com o target `production`. [`.github/workflows/release.yml`](./.github/workflows/release.yml) constrói e publica as imagens da API e do frontend no GHCR em tags `v*.*.*`, usando `GITHUB_TOKEN`. Isto publica imagens no registry; não configura deployment da aplicação.
+
+A imagem da API publicada usa o target `production` do [Dockerfile backend](./backend/Dockerfile), servido por Gunicorn e executado como utilizador não-root. Para executar esse target, configura no ambiente de runtime `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `DJANGO_CORS_ALLOWED_ORIGINS` e `DJANGO_CSRF_TRUSTED_ORIGINS`; mantém `DJANGO_DEBUG=false` (o default da imagem). Não uses os valores de demonstração de `.env.example` em produção. A imagem não aplica migrations nem executa o seed: aplica migrations como operação explícita de release e não executes `seed_demo` em produção. Hosting, TLS e deployment continuam por configurar.
 
 ### Documentação e contrato
 

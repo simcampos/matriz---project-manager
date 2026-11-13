@@ -20,6 +20,7 @@ Registo de alterações relevantes do Matriz, seguindo [Keep a Changelog](https:
 - Validação de escrita partilhada para rejeitar campos desconhecidos.
 - Admin limitado a leitura global de projetos/tarefas/comentários; gestão de papéis e membros protegida pelas regras implementadas.
 - Composição local documentada com serviços PostgreSQL, backend e frontend e health checks.
+- Target backend de produção servido por Gunicorn; Compose local mantém o target de desenvolvimento e CI/release constroem a imagem de produção.
 - Versão `info.version` do OpenAPI alinhada com o candidato `0.1.0-rc.4`.
 
 ### Fixed

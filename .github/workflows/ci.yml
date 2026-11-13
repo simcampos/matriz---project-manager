@@ -81,7 +81,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        run: docker buildx build --load --tag matriz-backend:ci --file backend/Dockerfile ./backend
+        run: docker buildx build --target production --load --tag matriz-backend:ci --file backend/Dockerfile ./backend
 
       - name: Build frontend image
         run: docker buildx build --load --tag matriz-frontend:ci --file frontend/Dockerfile ./frontend
