@@ -1,117 +1,73 @@
 # Arquitetura — Matriz
 
-## Estado e âmbito
+## Estado e decisões confirmadas
 
-Este documento regista a decisão de **monólito modular** e a stack aprovada para a implementação inicial: Python com Django e Django REST Framework no backend, React com Vite no frontend, PostgreSQL e Django ORM. Baseia-se em [requirements.md](./requirements.md), [constraints.md](./constraints.md), [user-stories.md](./user-stories.md), [database.md](./database.md) e [openapi.yaml](../openapi.yaml).
+O Matriz é um monólito modular: a API Django contém os módulos de contas, projetos, tarefas e comentários; o frontend React é uma aplicação cliente separada, compilada como ficheiros estáticos. PostgreSQL é a base de dados relacional. Não há deployment de produção configurado.
 
-## Contexto e fatores de decisão
+| Área | Decisão/versão implementada |
+|---|---|
+| Backend | Python 3.15.1 na imagem; Django 6.1.3, Django REST Framework 3.18.3 |
+| Frontend | Node 22.23.4 na imagem de build, React 19.3.1, Vite 8.3.5 |
+| Dados | PostgreSQL 17, acedido pelo Django ORM |
+| Autenticação | Sessões Django server-side, cookie `sessionid`, proteção CSRF |
+| Runtime frontend | Build Vite servido por Nginx 1.29.3 |
+| Contrato HTTP | OpenAPI 3.1 em [`openapi.yaml`](../openapi.yaml), versão `0.1.0-rc.4` |
 
-- Aplicação web de gestão de projetos e tarefas, usada através de um browser.
-- Escala de referência: uma equipa pequena/média, até cerca de 50 utilizadores. Não é um limite funcional confirmado.
-- Sem integrações externas no MVP.
-- Stack inicial: Django/DRF, React/Vite, PostgreSQL e Django ORM.
-- Funcionalidades implementadas: autenticação, CRUD e pesquisa de projetos, consulta de membros de projeto, tarefas com estado/prioridade e filtros, responsáveis, comentários e painel inicial. As limitações da API estão registadas em [implementation-plan.md](./implementation-plan.md).
-- Papéis e estados de tarefa fixos; sem múltiplas equipas nem permissões granulares.
+A utilização local também é documentada para Python 3.12–3.15 e Node.js 20.19+ ou 22.12+. Versões de produção/deployment, disponibilidade e escala não estão definidas.
 
-## Abordagens consideradas
-
-| Abordagem | Vantagens | Desvantagens | Adequação ao MVP |
-|---|---|---|---|
-| **Monólito tradicional** | Simples de desenvolver, executar e publicar. | Responsabilidades podem ficar entrelaçadas e difíceis de alterar isoladamente. | Viável, mas com menos separação explícita entre áreas. |
-| **Monólito modular** | Uma só aplicação a publicar, com módulos e responsabilidades separados; evolui sem custo operacional adicional. | Exige disciplina para manter os limites entre módulos; partilha ciclo de publicação e armazenamento. | **Adequado:** simples para a escala prevista e com a separação pretendida. |
-| **Microservices** | Publicação e escala independentes por serviço. | Complexidade operacional e de comunicação (consistência, falhas, observabilidade). | Não se justifica: sem integrações nem requisitos de escala que o compensem. |
-
-## Decisão
-
-Adotar um **monólito modular**: uma única aplicação implantável, internamente dividida em módulos com fronteiras claras, que comunica com o browser através de uma API REST (contrato em [openapi.yaml](../openapi.yaml)).
-
-Justificação:
-
-- A escala e o âmbito não exigem serviços independentes.
-- Os módulos refletem a separação de responsabilidades pedida e os grupos de endpoints já definidos.
-- Uma só unidade de publicação reduz operação, testes de integração e consistência de dados (por exemplo, a regra "responsável tem de ser membro do projeto" envolve vários módulos).
-- Se um módulo vier a precisar de escala ou publicação independente, as fronteiras permitem extraí-lo mais tarde.
-
-## Visão geral
+## Componentes e comunicação
 
 ```mermaid
 flowchart LR
-    B[Browser] --> WEB[Interface React]
-    WEB -->|HTTP / REST| A[API Django REST Framework]
-    WEB --> DSH[Painel<br/>agrega projetos e tarefas]
-    subgraph M[Monólito modular]
-        A --> AUTH[Autenticação e sessões]
-        A --> PRJ[Projetos e membros]
-        A --> TSK[Tarefas]
-        A --> CMT[Comentários]
-        A --> ACC[Utilizadores e papéis]
-        AUTH -.-> AZ[Verificações de acesso nas views]
-        PRJ -.-> AZ
-        TSK -.-> AZ
-        CMT -.-> AZ
+    B[Browser] --> FE[React/Vite em desenvolvimento]
+    B --> NG[Nginx: frontend estático]
+    B -->|REST; cookie e CSRF| API[Django REST Framework]
+    FE -. URL da API configurada em desenvolvimento .-> API
+    subgraph Backend modular
+        API --> ACC[Accounts e sessões]
+        API --> PRJ[Projects e membros]
+        API --> TSK[Tasks e responsáveis]
+        API --> CMT[Comments]
+        ACC --> AUTH[Autorização nas views]
+        PRJ --> AUTH
+        TSK --> AUTH
+        CMT --> AUTH
     end
-    AUTH --> DB[(PostgreSQL)]
-    ACC --> DB
+    ACC --> DB[(PostgreSQL 17)]
     PRJ --> DB
     TSK --> DB
     CMT --> DB
-    DSH --> A
+    GH[GitHub Actions] -->|testa; depois constrói| IMG[Imagens Docker]
+    TAG[Push de tag v*.*.*] --> REL[Workflow de release]
+    REL -->|push| GHCR[GitHub Container Registry]
 ```
 
-## Execução containerizada local
+O painel agrega dados no frontend a partir dos endpoints disponíveis. Não existem endpoints REST próprios de dashboard, progresso do projeto ou tarefas pessoais.
 
-O [compose.yaml](../compose.yaml) disponibiliza `db`, `backend` e `frontend`, numa rede bridge partilhada. A API usa PostgreSQL pelo nome de serviço `db`; o frontend é compilado pelo Vite e servido por Nginx, e o browser comunica diretamente com a API em `http://localhost:8001/api`. A aplicação fica acessível no host nas portas 8001 (API) e 5174 (frontend); PostgreSQL usa a porta 5432 no host. A base de dados conserva os dados no volume `postgres_data`. Health checks e `depends_on` com `service_healthy` controlam a ordem de arranque.
+## Persistência e autenticação
 
-O backend usa [backend/Dockerfile](../backend/Dockerfile), com Django `runserver`; o frontend usa [frontend/Dockerfile](../frontend/Dockerfile), com build multi-stage e runtime Nginx. O Compose serve para integração e validação local, não é uma configuração de produção, sobretudo porque o backend usa `runserver`. Os containers `e2e-*` de [compose.e2e.yaml](../compose.e2e.yaml) continuam isolados e destinam-se apenas aos testes Playwright. O workflow [release.yml](../.github/workflows/release.yml) publica as imagens da API e do frontend no GHCR quando é enviada uma tag `v*.*.*`; o deployment no Render permanece por definir.
+- PostgreSQL 17 e Django ORM; migrations são aplicadas explicitamente.
+- Entidades persistidas: utilizadores, projetos, membros, tarefas, responsáveis e comentários. Sessões usam `django.contrib.sessions`.
+- Login por email e palavra-passe. O servidor guarda a sessão e invalida-a no logout. Pedidos mutáveis do browser usam CSRF.
+- Papéis: `ADMIN`, `PROJECT_MANAGER`, `DEVELOPER`; estados: `TODO`, `IN_PROGRESS`, `DONE`; prioridades: `LOW`, `MEDIUM`, `HIGH`.
+- O Admin tem leitura global de projetos, tarefas e comentários, sem escrita em projetos/tarefas nem criação de comentários. A API limita recursos não acessíveis e devolve 404.
 
-## Componentes e responsabilidades
+## Docker e Compose
 
-| Componente | Responsabilidades | Dados que possui | Endpoints (OpenAPI) | Requisitos |
-|---|---|---|---|---|
-| **Interface web** | Ecrãs de autenticação, painel, projetos e tarefas; consome a API e sincroniza as vistas após operações confirmadas. | Estado de apresentação | — | RF-01, RF-04, RF-06 a RF-15 |
-| **API** | Django REST Framework valida pedidos e devolve erros de validação, `detail` ou conflito conforme a operação. As listagens devolvem arrays sem paginação. | Nenhum | Rotas documentadas em [openapi.yaml](../openapi.yaml) | RF-01 a RF-15 |
-| **Autenticação e sessão** | Autenticação por email/palavra-passe, sessão Django no servidor e proteção CSRF para operações mutáveis. | `User`; `django_session` | `GET /csrf/`, `POST /sessions/`, `DELETE /sessions/current/` | RF-01 |
-| **Utilizadores e papéis** | Devolver o utilizador autenticado; Admin lista utilizadores e altera papéis, protegendo o último Admin ativo e gestores de projetos. | `User` | `/users/me/`, `GET /users/`, `PATCH /users/{userId}/` | RF-02, RF-03 |
-| **Projetos e membros** | CRUD e pesquisa de projetos; verificar acesso; consultar, associar e remover membros ativos. Admin tem leitura global; o gestor não pode ser removido e remover membro limpa as suas atribuições no projeto. | `Project`, `ProjectMember` | `/projects/`, `/projects/{projectId}/`, `/projects/{projectId}/members/`, `/eligible-members/` | RF-04, RF-05, RF-13 |
-| **Tarefas** | CRUD, filtros por estado/prioridade/responsável, atribuições e atualização restrita de estado por Developer atribuído. | `Task`, `TaskAssignee` | `/projects/{projectId}/tasks/`, detalhe, `/assignees/` | RF-06 a RF-10, RF-12 |
-| **Comentários** | Criar e listar por ordem de criação; o servidor define autor e data. | `Comment` | `/projects/{projectId}/tasks/{taskId}/comments/` | RF-14 |
-| **Painel** | Carregar projetos e tarefas pelas rotas existentes e calcular no browser contagens por estado e tarefas atribuídas ao utilizador. | Estado de apresentação | Sem endpoint próprio | RF-11, RF-12, RF-15 |
-| **Django Admin** | Interface administrativa disponibilizada pelo Django, fora do contrato REST da aplicação. | Modelos registados no Admin | `/admin/` | Fora do fluxo da API |
-| **Autorização** (transversal) | As views limitam consultas ao projeto acessível, exceto Admin que tem leitura global; operações de escrita verificam papel/gestor e Admin não pode alterar dados do projeto ou adicionar comentários. | Nenhum | Aplicada nas rotas de utilizadores, projetos, membros, tarefas e comentários | RF-02, RF-03, RF-05, RF-09, RF-14 |
-| **Armazenamento** | PostgreSQL, acedido pelo Django ORM; persistir entidades, sessões e migrations. | Todos | — | — |
+- [`compose.yaml`](../compose.yaml) executa `db`, `backend` e `frontend`; health checks ordenam o arranque. Portas locais: PostgreSQL 5432, API 8001, frontend 5174. A base de dados persiste num volume Docker.
+- [`backend/Dockerfile`](../backend/Dockerfile) instala dependências e executa Django `runserver`; é uma imagem de validação, não uma configuração de produção.
+- [`frontend/Dockerfile`](../frontend/Dockerfile) compila com Node 22.23.4 e serve os assets com Nginx 1.29.3. `VITE_API_BASE_URL` é definido em build; o Dockerfile usa `http://localhost:8000/api` por omissão e o Compose de desenvolvimento substitui-o por `http://localhost:8001/api`.
+- [`compose.e2e.yaml`](../compose.e2e.yaml) define uma base PostgreSQL separada e serviços isolados para Playwright `v1.56.1`; migrations e seed E2E são passos explícitos.
+- O arranque não executa migrations ou seed. O `.env` é local e não deve ser versionado.
 
-## Regras de fronteira entre módulos
+## CI e publicação
 
-- As apps Django organizam responsabilidades, mas ainda não formam fronteiras isoladas: há dependências diretas entre modelos e views de `accounts`, `projects`, `tasks` e `comments`.
-- As verificações de acesso são feitas nas views por consultas limitadas ao projeto e helpers de autorização. A implementação não usa uma única permission class global para todos os endpoints.
-- **Dependências atuais:** Tarefas consulta Projetos e Utilizadores para acesso/elegibilidade; Comentários reutiliza a consulta de tarefa autorizada; o Painel obtém projetos e tarefas através da API e calcula as contagens no frontend.
-- A classe `StrictSerializer` partilhada em `apps.common` rejeita campos desconhecidos nos serializers de escrita que a utilizam.
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar. Permissão: `contents: read`; credenciais de teste são placeholders.
+- [`.github/workflows/release.yml`](../.github/workflows/release.yml): em push de tags `v*.*.*`, usa `GITHUB_TOKEN` com `packages: write`, gera tags SemVer e publica `ghcr.io/simcampos/matriz-api` e `ghcr.io/simcampos/matriz-frontend`.
+- Este pipeline publica imagens; não executa deployment. Hosting, URL pública da API e configuração de produção permanecem por definir.
 
-## Regras e escolhas registadas
+## API e limites conhecidos
 
-**Comportamento implementado:** sessões Django no servidor; estados `TODO`, `IN_PROGRESS`, `DONE`; prioridades `LOW`, `MEDIUM`, `HIGH` com defaults `TODO` e `MEDIUM`; proteção CSRF; e eliminação em cascata de dados dependentes de projetos e tarefas. A listagem de comentários está ordenada por data e identificador.
+As 17 rotas REST e os respetivos métodos descritos em [`openapi.yaml`](../openapi.yaml) correspondem às rotas Django implementadas. O Admin Django em `/admin/` não faz parte do contrato REST. As listas não têm paginação. Gestão/criação de contas, política de expiração de sessão, requisitos de segurança/privacidade e deployment de produção continuam por definir.
 
-**Decisões de autorização implementadas:** Admin consulta todos os projetos, tarefas, responsáveis e comentários em modo de leitura; não pode alterar projetos/tarefas, gerir responsáveis ou adicionar comentários. O Admin pode gerir papéis, mas não pode deixar a equipa sem Admin ativo nem rebaixar um gestor de projetos. Apenas o Project Manager responsável gere membros; são elegíveis contas ativas de qualquer papel, e remover um membro também remove as suas atribuições às tarefas do projeto. Pedidos de utilizadores sem acesso a um projeto devolvem 404.
-
-## Funcionalidades ainda não implementadas
-
-RF-03 (gestão de papéis) e RF-05 (gestão de membros) estão implementados na API e interface. Não existem endpoints REST para tarefas pessoais, progresso do projeto ou painel; o frontend agrega dados de projetos e tarefas pelas rotas disponíveis.
-
-## Decisões pendentes
-
-| Decisão | Notas |
-|---|---|
-| Política de sessão | Duração, renovação e expiração das sessões Django. |
-| **Criação de contas** | Como são criadas, convidadas e desativadas as contas; as primeiras contas são um bloqueio em aberto (ver [user-stories.md](./user-stories.md)). |
-| Comentários | Limites de conteúdo, ordenação, edição/remoção e retenção. |
-| Pesquisa | Correspondência por nome, sensibilidade a maiúsculas/acentos e comportamento sem resultados. |
-| Alterações concorrentes | Como evitar perda silenciosa de alterações numa tarefa (por exemplo, um campo de versão ou data de atualização, que o modelo não tem). |
-| Proteção CSRF e origens | Configuração de produção para o cookie de sessão, token CSRF e pedidos de origem cruzada. |
-| Alojamento, ambientes e publicação | Não definidos. |
-| Observabilidade, backups e recuperação | Não definidos. |
-| Requisitos mensuráveis | Desempenho, disponibilidade, acessibilidade e compatibilidade de browsers por acordar. |
-| Segurança e privacidade | Dados pessoais, retenção, eliminação e auditoria por definir. |
-
-## Evolução
-
-Se o âmbito crescer (múltiplas equipas, notificações, integrações), reavaliar primeiro as fronteiras entre módulos. A extração de um módulo para um serviço próprio só deve ser considerada quando houver necessidade concreta de escala ou de publicação independente.
+O `info.version` do OpenAPI está alinhado com o candidato do produto `0.1.0-rc.4`; não foi criada uma tag nem publicada uma release com esta versão.
