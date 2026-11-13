@@ -91,7 +91,11 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.RENDER_API_SERVICE_ID != '' &&
+      vars.RENDER_FRONTEND_SERVICE_ID != ''
     runs-on: ubuntu-latest
     environment: production
     env:
