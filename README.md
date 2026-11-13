@@ -160,6 +160,8 @@ npm test
 npm run build
 ```
 
+O workflow [ci.yml](./.github/workflows/ci.yml) executa os testes backend e frontend em pushes para `main`/`develop` e em pull requests para `main`; só constrói as imagens Docker se todos os testes passarem.
+
 O seed pode ser executado novamente sem duplicar os registos de demonstração. Os resultados das verificações funcionais e as limitações conhecidas estão em [verification.md](./docs/verification.md).
 
 O modelo lógico e as escolhas de persistência estão descritos em [database.md](./docs/database.md). Os estados são `TODO`, `IN_PROGRESS` e `DONE`; prioridades são `LOW`, `MEDIUM` e `HIGH`, com defaults `TODO` e `MEDIUM`. As sessões são geridas por Django; a tabela `django_session` é criada pelas migrations do framework.
