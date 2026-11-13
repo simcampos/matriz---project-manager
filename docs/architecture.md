@@ -2,7 +2,7 @@
 
 ## Estado e decisões confirmadas
 
-O Matriz é um monólito modular: a API Django contém os módulos de contas, projetos, tarefas e comentários; o frontend React é uma aplicação cliente separada, compilada como ficheiros estáticos. PostgreSQL é a base de dados relacional. Não há deployment de produção configurado.
+O Matriz é um monólito modular: a API Django contém os módulos de contas, projetos, tarefas e comentários; o frontend React é uma aplicação cliente separada, compilada como ficheiros estáticos. PostgreSQL é a base de dados relacional. Existe uma configuração de protótipo Render; deploys após merge em `main` são acionados pelo GitHub Actions.
 
 | Área | Decisão/versão implementada |
 |---|---|
@@ -63,13 +63,13 @@ O painel agrega dados no frontend a partir dos endpoints disponíveis. Não exis
 
 ## CI e publicação
 
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar; o backend usa o target `production`. Em pushes para `main`, `deploy` depende de `build` e pede ao Render o deploy do SHA exato testado; valida os IDs e o segredo do GitHub Environment `production` e falha explicitamente se faltar configuração. O primeiro deploy é iniciado ao aplicar o Blueprint.
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para qualquer branch e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. Branches e PRs correm apenas os testes. Num push para `main` após merge, `publish` depende de `test` e constrói/publica as imagens API e frontend no GHCR com tags `latest` e `sha-*`; `deploy` depende de `publish` e pede ao Render o deploy do SHA exato testado. O job valida os IDs e o segredo do GitHub Environment `production` e falha explicitamente se faltar configuração.
 - [`.github/workflows/release.yml`](../.github/workflows/release.yml): em push de tags `v*.*.*`, usa `GITHUB_TOKEN` com `packages: write`, gera tags SemVer e publica `ghcr.io/simcampos/matriz-api` a partir do target `production`, além de `ghcr.io/simcampos/matriz-frontend`.
 - [`render.yaml`](../render.yaml) declara os serviços web Docker e PostgreSQL em Frankfurt, com planos gratuitos adequados apenas a protótipos. O auto-deploy fica desligado no Render para não contornar os checks do GitHub Actions. O frontend faz proxy da API pela URL pública do backend, pois serviços web gratuitos não recebem tráfego pela rede privada do Render.
 - No perfil gratuito, a base de dados bloqueia ligações externas por omissão e as migrations são explícitas; a base de dados expira ao fim de 30 dias e os serviços web podem adormecer. Para aplicar migrations via `preDeployCommand`, o serviço web tem de usar um plano pago.
 
 ## API e limites conhecidos
 
-As 17 rotas REST e os respetivos métodos descritos em [`openapi.yaml`](../openapi.yaml) correspondem às rotas Django implementadas. O Admin Django em `/admin/` não faz parte do contrato REST. As listas não têm paginação. Gestão/criação de contas, política de expiração de sessão e requisitos de segurança/privacidade continuam por definir. A configuração Render está preparada, mas a criação dos recursos, a configuração dos GitHub Environment values/secrets e o primeiro deploy dependem de ações do utilizador no Dashboard.
+As 17 rotas REST e os respetivos métodos descritos em [`openapi.yaml`](../openapi.yaml) correspondem às rotas Django implementadas. O Admin Django em `/admin/` não faz parte do contrato REST. As listas não têm paginação. Gestão/criação de contas, política de expiração de sessão e requisitos de segurança/privacidade continuam por definir. O protótipo Render foi configurado e o primeiro deploy já foi efetuado; os IDs e a chave usados pela CI residem no GitHub Environment `production`.
 
 O `info.version` do OpenAPI está alinhado com o candidato do produto `0.1.0-rc.4`; não foi criada uma tag nem publicada uma release com esta versão.
