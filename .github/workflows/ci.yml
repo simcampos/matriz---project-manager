@@ -64,7 +64,7 @@ jobs:
         run: python backend/manage.py check
 
       - name: Run backend tests
-        run: python backend/manage.py test apps.accounts apps.projects apps.tasks apps.comments
+        run: python backend/manage.py test config.tests apps.accounts apps.projects apps.tasks apps.comments
 
       - name: Run frontend tests
         working-directory: frontend
@@ -88,3 +88,39 @@ jobs:
 
       - name: Verify Docker images
         run: docker image inspect matriz-backend:ci matriz-frontend:ci
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_API_SERVICE_ID: ${{ vars.RENDER_API_SERVICE_ID }}
+      RENDER_FRONTEND_SERVICE_ID: ${{ vars.RENDER_FRONTEND_SERVICE_ID }}
+    steps:
+      - name: Deploy API commit to Render
+        run: |
+          set -euo pipefail
+          : "${RENDER_API_KEY:?Add RENDER_API_KEY to the production environment secrets}"
+          : "${RENDER_API_SERVICE_ID:?Add RENDER_API_SERVICE_ID to the production environment variables}"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --url "https://api.render.com/v1/services/${RENDER_API_SERVICE_ID}/deploys" \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header "Accept: application/json" \
+            --header "Content-Type: application/json" \
+            --data "{\"commitId\":\"${GITHUB_SHA}\"}"
+
+      - name: Deploy frontend commit to Render
+        run: |
+          set -euo pipefail
+          : "${RENDER_API_KEY:?Add RENDER_API_KEY to the production environment secrets}"
+          : "${RENDER_FRONTEND_SERVICE_ID:?Add RENDER_FRONTEND_SERVICE_ID to the production environment variables}"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --url "https://api.render.com/v1/services/${RENDER_FRONTEND_SERVICE_ID}/deploys" \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header "Accept: application/json" \
+            --header "Content-Type: application/json" \
+            --data "{\"commitId\":\"${GITHUB_SHA}\"}"

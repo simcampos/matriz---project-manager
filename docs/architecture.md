@@ -19,10 +19,8 @@ A utilização local também é documentada para Python 3.12–3.15 e Node.js 20
 
 ```mermaid
 flowchart LR
-    B[Browser] --> FE[React/Vite em desenvolvimento]
-    B --> NG[Nginx: frontend estático]
-    B -->|REST; cookie e CSRF| API[Django REST Framework]
-    FE -. URL da API configurada em desenvolvimento .-> API
+    B[Browser] --> FE[Nginx + React/Vite]
+    FE -->|/api; mesma origem, cookie e CSRF| API[Django REST Framework]
     subgraph Backend modular
         API --> ACC[Accounts e sessões]
         API --> PRJ[Projects e membros]
@@ -38,6 +36,8 @@ flowchart LR
     TSK --> DB
     CMT --> DB
     GH[GitHub Actions] -->|testa; depois constrói| IMG[Imagens Docker]
+    GH -->|deploy do SHA testado em main| API
+    GH -->|deploy do SHA testado em main| FE
     TAG[Push de tag v*.*.*] --> REL[Workflow de release]
     REL -->|push| GHCR[GitHub Container Registry]
 ```
@@ -56,18 +56,20 @@ O painel agrega dados no frontend a partir dos endpoints disponíveis. Não exis
 
 - [`compose.yaml`](../compose.yaml) executa `db`, `backend` e `frontend`; health checks ordenam o arranque. Portas locais: PostgreSQL 5432, API 8001, frontend 5174. A base de dados persiste num volume Docker.
 - [`backend/Dockerfile`](../backend/Dockerfile) tem targets separados: `development` usa Django `runserver` e é selecionado pelo Compose local; `production` usa Gunicorn. Ambos executam como utilizador não-root.
-- [`frontend/Dockerfile`](../frontend/Dockerfile) compila com Node 22.23.4 e serve os assets com Nginx 1.29.3. `VITE_API_BASE_URL` é definido em build; o Dockerfile usa `http://localhost:8000/api` por omissão e o Compose de desenvolvimento substitui-o por `http://localhost:8001/api`.
+- [`frontend/Dockerfile`](../frontend/Dockerfile) compila com Node 22.23.4 e serve os assets com Nginx 1.29.3. Em produção, o Nginx encaminha `/api/` para a API e o frontend usa a mesma origem para manter os cookies de sessão e CSRF acessíveis ao browser. `VITE_API_BASE_URL` é definido em build; o Dockerfile usa `http://localhost:8000/api` por omissão e o Compose de desenvolvimento substitui-o por `http://localhost:8001/api`.
+- [`backend/config/database.py`](../backend/config/database.py) aceita `DATABASE_URL` PostgreSQL (incluindo `sslmode` quando presente) e mantém as variáveis `POSTGRES_*` para o ambiente local e CI.
 - [`compose.e2e.yaml`](../compose.e2e.yaml) define uma base PostgreSQL separada e serviços isolados para Playwright `v1.56.1`; migrations e seed E2E são passos explícitos.
 - O arranque não executa migrations ou seed. O `.env` é local e não deve ser versionado.
 
 ## CI e publicação
 
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar; o backend usa o target `production`. Permissão: `contents: read`; credenciais de teste são placeholders.
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): em pushes para `main`/`develop` e pull requests para `main`, executa PostgreSQL 17, `manage.py check`, testes Django e testes frontend. O job `build` tem `needs: test` e só constrói/verifica as imagens backend e frontend se `test` passar; o backend usa o target `production`. Em pushes para `main`, `deploy` depende de `build` e pede ao Render o deploy do SHA exato testado. Os IDs dos serviços são Environment variables e `RENDER_API_KEY` é um Environment secret do GitHub `production`.
 - [`.github/workflows/release.yml`](../.github/workflows/release.yml): em push de tags `v*.*.*`, usa `GITHUB_TOKEN` com `packages: write`, gera tags SemVer e publica `ghcr.io/simcampos/matriz-api` a partir do target `production`, além de `ghcr.io/simcampos/matriz-frontend`.
-- Este pipeline publica imagens; não executa deployment. Hosting, URL pública da API e configuração de produção permanecem por definir.
+- [`render.yaml`](../render.yaml) declara os serviços web Docker e PostgreSQL em Frankfurt, com planos gratuitos adequados apenas a protótipos. O auto-deploy fica desligado no Render para não contornar os checks do GitHub Actions. O frontend faz proxy da API pela URL pública do backend, pois serviços web gratuitos não recebem tráfego pela rede privada do Render.
+- No perfil gratuito, a base de dados bloqueia ligações externas por omissão e as migrations são explícitas; a base de dados expira ao fim de 30 dias e os serviços web podem adormecer. Para aplicar migrations via `preDeployCommand`, o serviço web tem de usar um plano pago.
 
 ## API e limites conhecidos
 
-As 17 rotas REST e os respetivos métodos descritos em [`openapi.yaml`](../openapi.yaml) correspondem às rotas Django implementadas. O Admin Django em `/admin/` não faz parte do contrato REST. As listas não têm paginação. Gestão/criação de contas, política de expiração de sessão, requisitos de segurança/privacidade e deployment de produção continuam por definir.
+As 17 rotas REST e os respetivos métodos descritos em [`openapi.yaml`](../openapi.yaml) correspondem às rotas Django implementadas. O Admin Django em `/admin/` não faz parte do contrato REST. As listas não têm paginação. Gestão/criação de contas, política de expiração de sessão e requisitos de segurança/privacidade continuam por definir. A configuração Render está preparada, mas a criação dos recursos, a configuração dos GitHub Environment values/secrets e o primeiro deploy dependem de ações do utilizador no Dashboard.
 
 O `info.version` do OpenAPI está alinhado com o candidato do produto `0.1.0-rc.4`; não foi criada uma tag nem publicada uma release com esta versão.

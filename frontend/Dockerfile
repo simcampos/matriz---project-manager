@@ -21,6 +21,7 @@ RUN npm run build
 FROM nginx:1.29.3-alpine
 
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 
