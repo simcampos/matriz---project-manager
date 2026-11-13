@@ -1,0 +1,57 @@
+name: Seed production demo data
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_seed:
+        description: Confirm insertion of demo accounts and sample project data into production
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      DJANGO_DEBUG: "false"
+      DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
+      DEMO_PM_PASSWORD: ${{ secrets.DEMO_PM_PASSWORD }}
+      DEMO_DEVELOPER_PASSWORD: ${{ secrets.DEMO_DEVELOPER_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Validate production seed configuration
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?Add RENDER_DATABASE_URL to the production environment secrets}"
+          : "${DJANGO_SECRET_KEY:?Add DJANGO_SECRET_KEY to the production environment secrets}"
+          : "${DEMO_ADMIN_PASSWORD:?Add DEMO_ADMIN_PASSWORD to the production environment secrets}"
+          : "${DEMO_PM_PASSWORD:?Add DEMO_PM_PASSWORD to the production environment secrets}"
+          : "${DEMO_DEVELOPER_PASSWORD:?Add DEMO_DEVELOPER_PASSWORD to the production environment secrets}"
+
+      - name: Verify database migrations are current
+        working-directory: backend
+        run: python manage.py migrate --check
+
+      - name: Create demo users and sample data
+        working-directory: backend
+        run: python manage.py seed_demo
