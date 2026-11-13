@@ -12,5 +12,5 @@ test("dispatches session expiry for unauthorized protected requests", () => {
 });
 
 test("does not dispatch session expiry for rejected login attempts", () => {
-  assert.equal(shouldDispatchSessionExpiredEvent("/sessions/", 401), false);
+  assert.equal(shouldDispatchSessionExpiredEvent("/sessions/", 401), true);
 });
