@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build:
+      secrets:
+        - npm_ca
+
+secrets:
+  npm_ca:
+    file: ${E2E_CA_CERT_PATH:?Set E2E_CA_CERT_PATH to a trusted CA PEM file}

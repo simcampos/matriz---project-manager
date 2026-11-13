@@ -54,6 +54,33 @@ A aplicação inclui migrations e um seed de demonstração idempotente. O seed 
 - npm compatível com a versão instalada do Node.js.
 - Docker Engine com Docker Compose v2 ou mais recente e suporte a `up --wait` para arrancar a base de dados incluída; o [compose.yaml](./compose.yaml) usa PostgreSQL 17. Em alternativa, pode ser usado um servidor PostgreSQL 17 local.
 
+## Execução local com Docker Compose
+
+O Compose arranca PostgreSQL, a API Django e o frontend estático gerado pelo Vite e servido por Nginx. Este perfil é para validação local; não é a configuração de produção do Render. O backend usa Django `runserver`, enquanto o perfil E2E mantém os seus serviços isolados.
+
+É necessário Docker Engine com Docker Compose v2. Não é necessário instalar Python nem Node.js no host para executar esta opção:
+
+```sh
+cp .env.example .env
+docker compose up -d --build --wait
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py seed_demo
+```
+
+O seed é opcional e as migrations/seed são sempre comandos explícitos; o arranque dos containers não altera dados. Define as passwords de demonstração no `.env` antes de executar o seed.
+
+A aplicação fica disponível em `http://localhost:5174`; a API pode ser verificada em `http://localhost:8001/api/health/`. O frontend comunica diretamente com a API publicada em `http://localhost:8001/api`, com as origens CORS/CSRF limitadas ao frontend local. Os serviços partilham a rede Compose `matriz`; a base de dados também fica disponível no host em `localhost:5432`. Os dados persistem no volume `postgres_data`.
+
+Se o Docker estiver numa rede com inspeção TLS e o npm não confiar na CA instalada no host, segue os passos de certificado PEM da secção E2E, define `E2E_CA_CERT_PATH` para o ficheiro PEM e acrescenta `-f compose.dev.ca.yaml` ao comando Compose. O override disponibiliza a CA apenas como BuildKit secret durante a instalação npm; não a copia para a imagem.
+
+O frontend é compilado durante o build da imagem. Para incluir alterações ao código:
+
+```sh
+docker compose up -d --build --wait
+```
+
+O frontend usa Nginx para servir os ficheiros estáticos compilados; o backend continua a executar Django `runserver`, pelo que este Compose não é uma configuração de produção. O deployment no Render permanece para uma fase posterior. O workflow [release.yml](./.github/workflows/release.yml) publica as imagens da API e do frontend no GHCR ao enviar tags `v*.*.*`, usando `GITHUB_TOKEN`. A imagem do frontend mantém o valor predefinido `VITE_API_BASE_URL=http://localhost:8000/api`.
+
 ## Instalação e configuração local
 
 Executar a partir da raiz do repositório:
@@ -69,7 +96,7 @@ docker compose up -d --wait db
 .venv/bin/python backend/manage.py seed_demo
 ```
 
-O backend e o Vite leem a configuração do `.env` na raiz. `VITE_API_BASE_URL` é o endereço centralizado da API; o valor de exemplo aponta para `http://localhost:8000/api`. Para usar outro endereço, atualiza essa variável e as origens CORS/CSRF correspondentes no `.env`.
+Na execução manual, o backend e o Vite leem a configuração do `.env` na raiz. `VITE_API_BASE_URL` é o endereço centralizado da API; o valor de exemplo aponta para `http://localhost:8000/api`. No Compose, o endereço `http://localhost:8001/api` é definido como argumento de build do frontend. Para alterar as origens da execução manual, atualiza também as origens CORS/CSRF correspondentes no `.env`.
 
 O `.env` é local e não deve ser versionado; o ficheiro de referência versionado é `.env.example`.
 
@@ -89,12 +116,12 @@ As passwords de demonstração são fictícias e locais. Consulta ou altera os r
 
 ### Verificar e reutilizar serviços em execução
 
-No início do trabalho, verificar a base de dados e os serviços antes de os arrancar. O health check da API confirma também a ligação à base de dados:
+No início do trabalho, verificar os serviços Compose antes de os arrancar. O health check da API confirma também a ligação à base de dados:
 
 ```sh
-docker compose ps db
-curl --fail --silent --show-error http://localhost:8000/api/health/
-curl --fail --silent --show-error --output /dev/null --write-out 'HTTP %{http_code}\n' http://localhost:5173/
+docker compose ps db backend frontend
+curl --fail --silent --show-error http://localhost:8001/api/health/
+curl --fail --silent --show-error --output /dev/null --write-out 'HTTP %{http_code}\n' http://localhost:5174/
 ```
 
 Se a base de dados não estiver ativa, arrancá-la e esperar que fique pronta:
@@ -103,7 +130,7 @@ Se a base de dados não estiver ativa, arrancá-la e esperar que fique pronta:
 docker compose up -d --wait db
 ```
 
-Se o backend ou frontend não responder, arrancar apenas o serviço em falta. Não parar os serviços no fim do trabalho. O arranque não executa migrations nem seed e não altera dados.
+Se o backend ou frontend não responder, arrancar apenas o serviço em falta com `docker compose up -d --build --wait backend` ou `docker compose up -d --build --wait frontend`. Não parar os serviços no fim do trabalho. O arranque não executa migrations nem seed e não altera dados.
 
 ### Arranque manual
 
@@ -119,7 +146,7 @@ cd frontend
 npm run dev
 ```
 
-O backend fica disponível em `http://localhost:8000` e o frontend em `http://localhost:5173`.
+O backend manual fica disponível em `http://localhost:8000` e o frontend em `http://localhost:5173`.
 
 ## Testes e verificações
 

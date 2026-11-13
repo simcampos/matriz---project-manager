@@ -7,7 +7,9 @@ export default defineConfig({
   envDir: "..",
   plugins: [react()],
   server: {
-    allowedHosts: apiProxyTarget ? ["e2e-frontend"] : undefined,
+    allowedHosts: apiProxyTarget
+      ? ["e2e-frontend", "localhost", "127.0.0.1"]
+      : undefined,
     port: 5173,
     strictPort: true,
     proxy: apiProxyTarget

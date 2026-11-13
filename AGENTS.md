@@ -46,7 +46,8 @@
 ## Ambiente de desenvolvimento no início do trabalho
 
 - No início de cada nova tarefa neste repositório, verificar se PostgreSQL, backend e frontend estão disponíveis, seguindo as verificações de [README.md](./README.md).
-- Se um serviço já estiver disponível, reutilizá-lo; arrancar apenas os serviços em falta, pela ordem base de dados, backend e frontend.
+- Verificar os serviços containerizados com `docker compose ps db backend frontend`, o health check em `http://localhost:8001/api/health/` e um pedido HTTP a `http://localhost:5174/`.
+- Se um serviço já estiver disponível, reutilizá-lo; arrancar apenas os serviços Compose em falta, pela ordem base de dados, backend e frontend (`docker compose up -d --wait db`, depois backend e frontend com `--build --wait`).
 - Depois de arrancar um serviço, confirmar que ficou pronto com o health check HTTP da API e um pedido HTTP à página do frontend.
 - Não parar serviços no fim da tarefa, a menos que o utilizador peça.
 - Não executar migrations, seed nem limpar dados automaticamente como parte do arranque. O seed é uma ação manual e idempotente, documentada no README.

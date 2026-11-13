@@ -58,6 +58,12 @@ flowchart LR
     DSH --> A
 ```
 
+## Execução containerizada local
+
+O [compose.yaml](../compose.yaml) disponibiliza `db`, `backend` e `frontend`, numa rede bridge partilhada. A API usa PostgreSQL pelo nome de serviço `db`; o frontend é compilado pelo Vite e servido por Nginx, e o browser comunica diretamente com a API em `http://localhost:8001/api`. A aplicação fica acessível no host nas portas 8001 (API) e 5174 (frontend); PostgreSQL usa a porta 5432 no host. A base de dados conserva os dados no volume `postgres_data`. Health checks e `depends_on` com `service_healthy` controlam a ordem de arranque.
+
+O backend usa [backend/Dockerfile](../backend/Dockerfile), com Django `runserver`; o frontend usa [frontend/Dockerfile](../frontend/Dockerfile), com build multi-stage e runtime Nginx. O Compose serve para integração e validação local, não é uma configuração de produção, sobretudo porque o backend usa `runserver`. Os containers `e2e-*` de [compose.e2e.yaml](../compose.e2e.yaml) continuam isolados e destinam-se apenas aos testes Playwright. O workflow [release.yml](../.github/workflows/release.yml) publica as imagens da API e do frontend no GHCR quando é enviada uma tag `v*.*.*`; o deployment no Render permanece por definir.
+
 ## Componentes e responsabilidades
 
 | Componente | Responsabilidades | Dados que possui | Endpoints (OpenAPI) | Requisitos |

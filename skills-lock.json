@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "skills": {
+    "render-deploy": {
+      "source": "render-oss/skills",
+      "sourceType": "github",
+      "skillPath": "skills/render-deploy/SKILL.md",
+      "computedHash": "4ab4fe25981c8d94500af2b3866c55e99b53b60d4235b927270c5f62345787d1"
+    },
+    "render-docker": {
+      "source": "render-oss/skills",
+      "sourceType": "github",
+      "skillPath": "skills/render-docker/SKILL.md",
+      "computedHash": "7d1048740e99e5b6ce45256e2c92f189d9dcf7c933e6a6270364b11f9f913e36"
+    },
+    "render-mcp": {
+      "source": "render-oss/skills",
+      "sourceType": "github",
+      "skillPath": "skills/render-mcp/SKILL.md",
+      "computedHash": "63792bdd38f902222f9818127bc80d0c71ced2baf96574eb2f23648a97224d4f"
+    }
+  }
+}
