@@ -1,10 +1,15 @@
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
-  color: #172554;
-  background: #f1f5f9;
+  color: #20372c;
+  background: #edf2eb;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  --color-ink: #20372c;
+  --color-muted: #617468;
+  --color-border: #d7e3d8;
+  --color-accent: #62846d;
+  --color-accent-strong: #416c50;
 }
 
 * {
@@ -15,6 +20,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background: linear-gradient(135deg, #f3f5ef 0%, #e8efe7 52%, #e2ece4 100%);
 }
 
 .page {
@@ -812,4 +818,156 @@ button:disabled {
   .dashboard-columns {
     grid-template-columns: 1fr;
   }
+}
+
+body {
+  color: var(--color-ink);
+}
+
+.auth-card,
+.workspace-card {
+  border-color: var(--color-border);
+  background: linear-gradient(145deg, #fbfcf9, #f3f6f0);
+}
+
+.dashboard-count-card,
+.dashboard-section,
+.dashboard-project-card,
+.dashboard-task-card,
+.project-card {
+  border-color: var(--color-border);
+  background: linear-gradient(145deg, #fbfcf9, #f2f6f0);
+  color: var(--color-ink);
+}
+
+.project-card:hover {
+  border-color: #a9c1ad;
+  background: linear-gradient(135deg, #f4f7f1, #eaf1e9);
+}
+
+.dashboard-project-card span,
+.dashboard-task-card span,
+.dashboard-count-card,
+.workspace-bar,
+.intro,
+.loading-state,
+.project-card-description,
+.project-description,
+.task-counts p,
+.task-open span,
+.task-card > span,
+.task-description,
+.task-metadata dt,
+.comment-heading,
+.empty-state,
+.project-member-list li span,
+.user-role-identity span,
+.user-role-current,
+.read-only-note,
+.connection {
+  color: var(--color-muted);
+}
+
+.dashboard-count-card strong,
+.task-counts strong,
+.login-form label,
+.project-form label,
+.dashboard-section h2,
+.project-card-title,
+.task-open,
+.comment-list p {
+  color: var(--color-ink);
+}
+
+.eyebrow,
+.back-button,
+.task-open:hover {
+  color: var(--color-accent-strong);
+}
+
+input,
+textarea,
+select,
+.dashboard-count-card,
+.dashboard-section,
+.dashboard-project-card,
+.dashboard-task-card,
+.project-card,
+.task-card,
+.tasks-section,
+.task-detail-section,
+.project-members,
+.assignee-list li,
+.comment-list li,
+.project-member-list li,
+.user-role-list li {
+  border-color: var(--color-border);
+}
+
+.dashboard-section,
+.dashboard-project-card,
+.dashboard-task-card,
+.comment-list li,
+.project-member-list li,
+.user-role-list li {
+  background: linear-gradient(135deg, #f8faf6, #edf3ec);
+}
+
+.login-form input,
+.project-form input,
+.project-form textarea,
+.project-search input,
+.task-filters select,
+.task-form input,
+.task-form textarea,
+.task-form select,
+.task-card select,
+.assignee-form select,
+.comment-form textarea,
+.project-member-form select,
+.user-role-form select {
+  border-color: #c6d5c9;
+  background-color: #fbfcf9;
+  color: var(--color-ink);
+}
+
+.login-form input:focus,
+.project-form input:focus,
+.project-form textarea:focus,
+.project-search input:focus {
+  border-color: var(--color-accent);
+  outline: 3px solid rgb(98 132 109 / 20%);
+}
+
+button {
+  background: linear-gradient(135deg, #64866d, #416c50);
+}
+
+button:hover:not(:disabled):not(.danger-button) {
+  background: linear-gradient(135deg, #567961, #365d44);
+}
+
+.secondary-button {
+  background: linear-gradient(135deg, #e6ede5, #dce7dc);
+  color: var(--color-ink);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dce7dc, #d1e0d3);
+}
+
+.danger-button {
+  background: #b91c1c;
+}
+
+.connection--connected .connection-indicator {
+  background: #62846d;
+}
+
+.success-message {
+  color: var(--color-accent-strong);
+}
+
+:focus-visible {
+  outline-color: var(--color-accent);
 }
