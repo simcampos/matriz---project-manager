@@ -2,6 +2,15 @@
 
 Registo de alterações relevantes do Matriz, seguindo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). As versões seguem Semantic Versioning. Esta entrada prepara uma release candidate; não significa que a release ou tag tenha sido publicada.
 
+## [0.1.0-rc.5] - 2026-11-13
+
+> Candidata preparada para revisão. Tag não criada; release não publicada.
+
+### Changed
+
+- Imagem da API de release passa a usar o target de produção Gunicorn; Compose local mantém o target de desenvolvimento.
+- CI valida o target backend de produção e o workflow de release publica esse target.
+
 ## [0.1.0-rc.4] - 2026-11-13
 
 > Candidata preparada para revisão. Tag não criada; release não publicada.
