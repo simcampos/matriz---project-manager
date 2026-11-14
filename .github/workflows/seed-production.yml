@@ -15,7 +15,7 @@ permissions:
 jobs:
   seed:
     if: github.ref == 'refs/heads/main' && inputs.confirm_seed
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, production-seed]
     timeout-minutes: 10
     environment: production
     env:
