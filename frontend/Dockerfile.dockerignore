@@ -1,0 +1,17 @@
+**
+!openapi.yaml
+!frontend/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/vite.config.js
+!frontend/nginx.conf.template
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+**/.env
+**/.env.*
+**/node_modules
+**/dist
+**/*.log

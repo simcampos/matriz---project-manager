@@ -152,4 +152,8 @@ Os planos gratuitos são apenas para protótipos: os serviços web podem adormec
 - [Requisitos](./docs/requirements.md), [User Stories](./docs/user-stories.md) e [Restrições](./docs/constraints.md).
 - [Arquitetura](./docs/architecture.md), [modelo de dados](./docs/database.md), [plano de implementação](./docs/implementation-plan.md) e [verificação registada](./docs/verification.md).
 - [OpenAPI 3.1](./openapi.yaml).
+
+O contrato OpenAPI também é servido em `/openapi.yaml` pelo frontend Docker;
+no protótipo Render, fica disponível publicamente em
+<https://matriz-project-manager-web.onrender.com/openapi.yaml>.
 - [CHANGELOG](./CHANGELOG.md) e [notas da versão candidata](./docs/release-notes-v0.1.0-rc.4.md).
