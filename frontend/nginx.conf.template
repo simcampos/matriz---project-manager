@@ -13,6 +13,12 @@ server {
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     }
 
+    location = /openapi.yaml {
+        types {}
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

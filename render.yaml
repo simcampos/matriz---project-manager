@@ -30,7 +30,7 @@ services:
     plan: free
     branch: main
     dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
+    dockerContext: .
     autoDeployTrigger: off
     envVars:
       - key: VITE_API_BASE_URL
