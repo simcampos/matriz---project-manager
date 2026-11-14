@@ -17,6 +17,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && inputs.confirm_seed
     runs-on: [self-hosted, production-seed]
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: 'bash --noprofile --norc -e -o pipefail "{0}"'
     environment: production
     env:
       DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
